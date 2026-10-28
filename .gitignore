@@ -1,0 +1,24 @@
+
+# Private environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# Local databases and private keys
+*.sqlite
+*.db
+*.pem
+*.key
+
+# Operating system files
+.DS_Store
+Thumbs.db
