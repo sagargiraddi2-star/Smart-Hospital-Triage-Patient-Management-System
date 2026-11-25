@@ -460,3 +460,67 @@
   cursor: not-allowed;
 }
 
+
+/* Small explanatory text under a table value */
+
+.queue-cell-note {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Priority editor (keeps the badge colours) */
+
+.priority-select {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.priority-select:hover {
+  border-color: currentColor;
+}
+
+.priority-select:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.priority-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Manual queue reordering */
+
+.queue-reorder-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.queue-reorder-button {
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.queue-reorder-button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.queue-reorder-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

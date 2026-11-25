@@ -344,6 +344,34 @@ function PatientDetails() {
                   <span>
                     Visit type: <strong>{visit.visit_type || '—'}</strong>
                   </span>
+
+                  {visit.status !== 'waiting' && (
+                    <span>
+                      Waiting time:{' '}
+                      <strong>
+                        {visit.waiting_time_minutes ?? 'Not recorded'}
+                        {visit.waiting_time_minutes !== null &&
+                          visit.waiting_time_minutes !== undefined &&
+                          ' min'}
+                      </strong>
+                    </span>
+                  )}
+
+                  {visit.consultation_started_at && (
+                    <span>
+                      Consultation started:{' '}
+                      <strong>
+                        {formatDateTime(visit.consultation_started_at)}
+                      </strong>
+                    </span>
+                  )}
+
+                  {visit.completed_at && (
+                    <span>
+                      Completed:{' '}
+                      <strong>{formatDateTime(visit.completed_at)}</strong>
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
@@ -607,7 +635,37 @@ function PatientDetails() {
               </div>
             ) : (
               <div className="assessment-list">
-                {assessments.map((assessment) => (
+                {assessments.map((assessment) =>
+                  assessment.entry_type === 'priority_update' ? (
+                  <article
+                    className="assessment-item"
+                    key={assessment.id}
+                  >
+                    <div className="assessment-item-heading">
+                      <div>
+                        <h3>Priority changed from queue</h3>
+                        <p>{formatDateTime(assessment.created_at)}</p>
+                      </div>
+
+                      <span
+                        className={`priority-badge priority-${assessment.triage_priority}`}
+                      >
+                        {assessment.triage_priority}
+                      </span>
+                    </div>
+
+                    <p className="assessment-description">
+                      <strong>Change:</strong>{' '}
+                      {assessment.previous_priority || 'unknown'} →{' '}
+                      {assessment.triage_priority}. No new observations
+                      were recorded with this change.
+                    </p>
+
+                    <p className="assessment-assessor">
+                      Changed by: {assessment.assessed_by_name || 'Staff member'}
+                    </p>
+                  </article>
+                  ) : (
                   <article
                     className="assessment-item"
                     key={assessment.id}
@@ -667,7 +725,8 @@ function PatientDetails() {
                       Assessed by: {assessment.assessed_by_name || 'Staff member'}
                     </p>
                   </article>
-                ))}
+                  )
+                )}
               </div>
             )}
           </>

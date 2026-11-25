@@ -95,6 +95,12 @@ async function setupDatabase() {
       ON triage_assessments (visit_id, created_at DESC);
     `);
 
+    // 7. Phase 2 migration: consultation timing, priority snapshots,
+    //    queue-side priority updates and manual queue order.
+    //    Every statement is additive and safe to run more than once.
+    //    It never drops tables or columns and never deletes records.
+    await runPhase2Migration();
+
     console.log('Database setup completed successfully!');
     console.log(
       'Users, patients, patient_visits and triage_assessments tables are ready.'
@@ -105,6 +111,62 @@ async function setupDatabase() {
     process.exitCode = 1;
   } finally {
     await pool.end();
+  }
+}
+
+async function runPhase2Migration() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // The first three columns already exist in the live database
+    // (added outside this script). IF NOT EXISTS keeps them unchanged
+    // there and creates them for fresh installations.
+    await client.query(`
+      ALTER TABLE patient_visits
+        ADD COLUMN IF NOT EXISTS consultation_started_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS waiting_time_minutes INTEGER
+          CHECK (waiting_time_minutes >= 0),
+        ADD COLUMN IF NOT EXISTS priority_at_consultation VARCHAR(20)
+          CHECK (
+            priority_at_consultation IN ('critical', 'high', 'medium', 'low')
+          ),
+        ADD COLUMN IF NOT EXISTS consultation_started_by INTEGER
+          REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS completed_by INTEGER
+          REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS queue_position INTEGER
+          CHECK (queue_position > 0);
+    `);
+
+    // Distinguish full assessments from priority changes made in the
+    // queue, so the assessment history is preserved, not overwritten.
+    // Existing rows receive the default 'assessment', which is accurate.
+    await client.query(`
+      ALTER TABLE triage_assessments
+        ADD COLUMN IF NOT EXISTS entry_type VARCHAR(30)
+          NOT NULL DEFAULT 'assessment'
+          CHECK (entry_type IN ('assessment', 'priority_update')),
+        ADD COLUMN IF NOT EXISTS previous_priority VARCHAR(20)
+          CHECK (
+            previous_priority IN ('critical', 'high', 'medium', 'low')
+          );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_patient_visits_status
+      ON patient_visits (status, visit_type);
+    `);
+
+    await client.query('COMMIT');
+    console.log('Phase 2 queue migration applied.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

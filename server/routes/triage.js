@@ -94,9 +94,21 @@ router.post('/', requireAuth, async (req, res) => {
       }
     }
 
-    // Confirm that the visit exists.
+    // Confirm that the visit exists and read its current priority.
     const visitResult = await pool.query(
-      'SELECT id FROM patient_visits WHERE id = $1',
+      `
+        SELECT
+          pv.id,
+          (
+            SELECT triage_priority
+            FROM triage_assessments
+            WHERE visit_id = pv.id
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+          ) AS current_priority
+        FROM patient_visits pv
+        WHERE pv.id = $1
+      `,
       [Number(visitId)]
     );
 
@@ -145,6 +157,16 @@ router.post('/', requireAuth, async (req, res) => {
       ]
     );
 
+    // A manual queue position belongs to the previous priority group.
+    // If this assessment changed the priority, the patient joins the end
+    // of the new group's manual order (same rule as queue priority edits).
+    if (visitResult.rows[0].current_priority !== triagePriority) {
+      await pool.query(
+        'UPDATE patient_visits SET queue_position = NULL WHERE id = $1',
+        [Number(visitId)]
+      );
+    }
+
     return res.status(201).json({
       message: 'Triage assessment saved successfully.',
       assessment: result.rows[0],
@@ -180,7 +202,7 @@ router.get('/:visitId', requireAuth, async (req, res) => {
         FROM triage_assessments ta
         LEFT JOIN users u ON ta.assessed_by = u.id
         WHERE ta.visit_id = $1
-        ORDER BY ta.created_at DESC
+        ORDER BY ta.created_at DESC, ta.id DESC
       `,
       [visitId]
     );

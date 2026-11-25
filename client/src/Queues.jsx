@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Queues.css';
 
-function formatWaitingTime(arrivalTime) {
-  const arrival = new Date(arrivalTime);
-  const now = new Date();
+const API_URL = 'http://localhost:5000/api/queues';
+const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
-  const difference = Math.max(0, now - arrival);
-  const totalMinutes = Math.floor(difference / 60000);
+// How often the live waiting timer ticks and the queue reloads.
+const CLOCK_INTERVAL_MS = 30 * 1000;
+const REFRESH_INTERVAL_MS = 60 * 1000;
+
+function formatMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
@@ -18,10 +20,75 @@ function formatWaitingTime(arrivalTime) {
   return `${minutes} min`;
 }
 
+// Waiting patients: live time since registration.
+// In consultation: the waiting time frozen in the database when
+// consultation started. Older visits without a recorded value show
+// "Not recorded" instead of a guessed figure.
+function getWaitingTime(patient, now) {
+  if (patient.status === 'waiting') {
+    const difference = Math.max(0, now - new Date(patient.arrival_time));
+
+    return {
+      value: formatMinutes(Math.floor(difference / 60000)),
+      note: null,
+    };
+  }
+
+  if (patient.waiting_time_minutes !== null && patient.waiting_time_minutes !== undefined) {
+    return {
+      value: formatMinutes(patient.waiting_time_minutes),
+      note: 'Recorded at consultation start',
+    };
+  }
+
+  return {
+    value: 'Not recorded',
+    note: 'Started before timing was tracked',
+  };
+}
+
 function formatPriority(priority) {
   if (!priority) return 'Awaiting Triage';
 
   return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+// Waiting patients that share the same queue, department and priority.
+// Manual reordering is only possible inside this group.
+function getReorderGroup(queueList, patient) {
+  return queueList.filter(
+    (other) =>
+      other.status === 'waiting' &&
+      other.visit_type === patient.visit_type &&
+      (other.department || null) === (patient.department || null) &&
+      (other.triage_priority || null) === (patient.triage_priority || null)
+  );
+}
+
+// Load active visits from the API.
+async function requestQueues() {
+  const response = await fetch(API_URL, {
+    credentials: 'include',
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Could not load patient queues.');
+  }
+
+  return data.queues || [];
+}
+
+function getNeighbor(queueList, patient, direction) {
+  const group = getReorderGroup(queueList, patient);
+  const index = group.findIndex(
+    (other) => other.visit_id === patient.visit_id
+  );
+
+  if (index === -1) return null;
+
+  return group[direction === 'up' ? index - 1 : index + 1] || null;
 }
 
 function Queues() {
@@ -38,89 +105,129 @@ function Queues() {
   const [error, setError] = useState('');
   const [updatingVisitId, setUpdatingVisitId] = useState(null);
   const [message, setMessage] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
-  // Fetch active patient queues.
-  async function fetchQueues() {
+  // Fetch active patient queues. State is only set after the request
+  // finishes, so periodic refreshes do not flash the loading message.
+  const fetchQueues = useCallback(
+    () =>
+      requestQueues()
+        .then(
+          (queueList) => {
+            setQueues(queueList);
+            setError('');
+            setNow(Date.now());
+          },
+          (error) => setError(error.message)
+        )
+        .finally(() => setLoading(false)),
+    []
+  );
+
+  useEffect(() => {
+    fetchQueues();
+
+    // Keep live waiting times current and pick up changes made by
+    // other staff members.
+    const clockTimer = setInterval(
+      () => setNow(Date.now()),
+      CLOCK_INTERVAL_MS
+    );
+    const refreshTimer = setInterval(fetchQueues, REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(clockTimer);
+      clearInterval(refreshTimer);
+    };
+  }, [fetchQueues]);
+
+  // Send a queue update, then reload the queue from the database.
+  // On failure the queue is also reloaded, so the screen never shows
+  // a stale order after a conflict.
+  async function sendQueueUpdate(visitId, path, body, successMessage) {
     try {
-      setLoading(true);
+      setUpdatingVisitId(visitId);
+      setMessage('');
       setError('');
 
-      const response = await fetch(
-        'http://localhost:5000/api/queues',
-        {
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(`${API_URL}/${visitId}/${path}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || 'Could not load patient queues.'
-        );
+        throw new Error(data.message || 'Could not update the queue.');
       }
 
-      setQueues(data.queues || []);
+      await fetchQueues();
+      setMessage(successMessage);
     } catch (error) {
+      await fetchQueues();
       setError(error.message);
     } finally {
-      setLoading(false);
+      setUpdatingVisitId(null);
     }
   }
 
-  useEffect(() => {
-    fetchQueues();
-  }, []);
-
   // Update a patient's visit status.
-  async function updateVisitStatus(patient) {
+  function updateVisitStatus(patient) {
     const nextStatus =
       patient.status === 'waiting'
         ? 'in_progress'
         : 'completed';
 
-    const actionMessage =
-      nextStatus === 'in_progress'
-        ? 'Consultation started successfully.'
-        : 'Visit marked as completed successfully.';
-
-    try {
-      setUpdatingVisitId(patient.visit_id);
-      setMessage('');
-      setError('');
-
-      const response = await fetch(
-        `http://localhost:5000/api/queues/${patient.visit_id}/status`,
-        {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: nextStatus,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || 'Could not update patient status.'
-        );
-      }
-
-      setMessage(actionMessage);
-
-      // Refresh the queue using the latest database data.
-      await fetchQueues();
-
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setUpdatingVisitId(null);
+    if (
+      nextStatus === 'in_progress' &&
+      !patient.triage_priority &&
+      !window.confirm(
+        `${patient.full_name} has no triage assessment yet. ` +
+          'Start the consultation anyway? Their priority will be ' +
+          'recorded as "Not triaged".'
+      )
+    ) {
+      return;
     }
+
+    sendQueueUpdate(
+      patient.visit_id,
+      'status',
+      { status: nextStatus },
+      nextStatus === 'in_progress'
+        ? 'Consultation started. Waiting time has been recorded.'
+        : 'Visit marked as completed and moved to Visit History.'
+    );
+  }
+
+  // Change a patient's staff-assigned priority.
+  function updatePriority(patient, priority) {
+    if (!priority || priority === patient.triage_priority) return;
+
+    sendQueueUpdate(
+      patient.visit_id,
+      'priority',
+      { priority },
+      `${patient.full_name}'s priority changed to ${formatPriority(priority)}.`
+    );
+  }
+
+  // Move a waiting patient one place within their priority group.
+  function movePatient(patient, direction) {
+    const neighbor = getNeighbor(typeQueues, patient, direction);
+
+    if (!neighbor) return;
+
+    sendQueueUpdate(
+      patient.visit_id,
+      'position',
+      { direction, expectedNeighborVisitId: neighbor.visit_id },
+      `${patient.full_name} moved ${direction}.`
+    );
   }
 
   // Separate normal and emergency visits.
@@ -222,7 +329,9 @@ function Queues() {
         <div className="queue-filter-heading">
           <h2>Filter by Department</h2>
           <p>
-            Choose a department to view its patient queue.
+            Choose a department to view its patient queue. Select a
+            department to reorder waiting patients — patients can only be
+            moved within their own priority group.
           </p>
         </div>
 
@@ -298,6 +407,7 @@ function Queues() {
 
               <thead>
                 <tr>
+                  <th>Order</th>
                   <th>Patient</th>
                   <th>Department</th>
                   <th>Chief Complaint</th>
@@ -309,8 +419,57 @@ function Queues() {
               </thead>
 
               <tbody>
-                {filteredQueues.map((patient) => (
+                {filteredQueues.map((patient) => {
+                  const waitingTime = getWaitingTime(patient, now);
+                  const isUpdating = updatingVisitId === patient.visit_id;
+                  const canReorder =
+                    patient.status === 'waiting' &&
+                    selectedDepartment !== 'All';
+                  const previousNeighbor = canReorder
+                    ? getNeighbor(typeQueues, patient, 'up')
+                    : null;
+                  const nextNeighbor = canReorder
+                    ? getNeighbor(typeQueues, patient, 'down')
+                    : null;
+                  const reorderHint =
+                    patient.status !== 'waiting'
+                      ? 'Only waiting patients can be reordered'
+                      : selectedDepartment === 'All'
+                        ? 'Select a department to reorder'
+                        : null;
+
+                  return (
                   <tr key={patient.visit_id}>
+
+                    <td>
+                      <div
+                        className="queue-reorder-buttons"
+                        title={reorderHint || undefined}
+                      >
+                        <button
+                          type="button"
+                          className="queue-reorder-button"
+                          onClick={() => movePatient(patient, 'up')}
+                          disabled={
+                            !previousNeighbor || updatingVisitId !== null
+                          }
+                          aria-label={`Move ${patient.full_name} up`}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="queue-reorder-button"
+                          onClick={() => movePatient(patient, 'down')}
+                          disabled={
+                            !nextNeighbor || updatingVisitId !== null
+                          }
+                          aria-label={`Move ${patient.full_name} down`}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </td>
 
                     <td>
                       <div className="queue-patient-name">
@@ -331,17 +490,51 @@ function Queues() {
                     </td>
 
                     <td>
-                      <span
-                        className={`priority-badge ${
-                          patient.triage_priority || 'unassigned'
-                        }`}
-                      >
-                        {formatPriority(patient.triage_priority)}
-                      </span>
+                      {patient.triage_priority ? (
+                        <select
+                          className={`priority-badge priority-select ${patient.triage_priority}`}
+                          value={patient.triage_priority}
+                          onChange={(event) =>
+                            updatePriority(patient, event.target.value)
+                          }
+                          disabled={updatingVisitId !== null}
+                          aria-label={`Priority for ${patient.full_name}`}
+                        >
+                          {PRIORITIES.map((priority) => (
+                            <option key={priority} value={priority}>
+                              {formatPriority(priority)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <>
+                          <span className="priority-badge unassigned">
+                            {formatPriority(patient.triage_priority)}
+                          </span>
+                          <span className="queue-cell-note">
+                            Triage via View Patient
+                          </span>
+                        </>
+                      )}
+
+                      {patient.status === 'in_progress' &&
+                        patient.consultation_started_at && (
+                          <span className="queue-cell-note">
+                            At start:{' '}
+                            {patient.priority_at_consultation
+                              ? formatPriority(patient.priority_at_consultation)
+                              : 'Not triaged'}
+                          </span>
+                        )}
                     </td>
 
                     <td className="queue-waiting-time">
-                      {formatWaitingTime(patient.arrival_time)}
+                      {waitingTime.value}
+                      {waitingTime.note && (
+                        <span className="queue-cell-note">
+                          {waitingTime.note}
+                        </span>
+                      )}
                     </td>
 
                     <td>
@@ -362,9 +555,9 @@ function Queues() {
                             type="button"
                             className="queue-status-action start"
                             onClick={() => updateVisitStatus(patient)}
-                            disabled={updatingVisitId === patient.visit_id}
+                            disabled={updatingVisitId !== null}
                           >
-                            {updatingVisitId === patient.visit_id
+                            {isUpdating
                               ? 'Updating...'
                               : 'Start Consultation'}
                           </button>
@@ -375,9 +568,9 @@ function Queues() {
                             type="button"
                             className="queue-status-action complete"
                             onClick={() => updateVisitStatus(patient)}
-                            disabled={updatingVisitId === patient.visit_id}
+                            disabled={updatingVisitId !== null}
                           >
-                            {updatingVisitId === patient.visit_id
+                            {isUpdating
                               ? 'Updating...'
                               : 'Complete Visit'}
                           </button>
@@ -394,7 +587,8 @@ function Queues() {
                     </td>
 
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
 
             </table>

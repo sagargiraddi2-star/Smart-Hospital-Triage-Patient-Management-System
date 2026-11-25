@@ -46,9 +46,32 @@ function CompletedVisits() {
   }
 
   function formatPriority(priority) {
-    if (!priority) return 'Awaiting Triage';
-
     return priority.charAt(0).toUpperCase() + priority.slice(1);
+  }
+
+  // Priority recorded when consultation started. Visits completed before
+  // this was tracked have no consultation start time.
+  function getPriorityAtStart(visit) {
+    if (visit.priority_at_consultation) {
+      return formatPriority(visit.priority_at_consultation);
+    }
+
+    return visit.consultation_started_at ? 'Not triaged' : 'Not recorded';
+  }
+
+  function formatWaitingTime(totalMinutes) {
+    if (totalMinutes === null || totalMinutes === undefined) {
+      return 'Not recorded';
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+  }
+
+  function formatRecordedDate(date) {
+    return date ? formatDate(date) : 'Not recorded';
   }
 
   return (
@@ -106,8 +129,11 @@ function CompletedVisits() {
                   <th>Department</th>
                   <th>Visit Type</th>
                   <th>Chief Complaint</th>
-                  <th>Priority</th>
+                  <th>Priority at Consultation</th>
+                  <th>Waiting Time</th>
                   <th>Arrival Time</th>
+                  <th>Consultation Start</th>
+                  <th>Completed</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -136,14 +162,22 @@ function CompletedVisits() {
                     <td>
                       <span
                         className={`visit-priority-badge ${
-                          visit.triage_priority || 'none'
+                          visit.priority_at_consultation || 'none'
                         }`}
                       >
-                        {formatPriority(visit.triage_priority)}
+                        {getPriorityAtStart(visit)}
                       </span>
                     </td>
 
+                    <td className="completed-visits-waiting-time">
+                      {formatWaitingTime(visit.waiting_time_minutes)}
+                    </td>
+
                     <td>{formatDate(visit.arrival_time)}</td>
+
+                    <td>{formatRecordedDate(visit.consultation_started_at)}</td>
+
+                    <td>{formatRecordedDate(visit.completed_at)}</td>
 
                     <td>
                       <Link

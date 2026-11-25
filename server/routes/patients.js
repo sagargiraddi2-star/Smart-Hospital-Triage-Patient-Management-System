@@ -94,7 +94,11 @@ router.get('/:id', requireAuth, async (req, res) => {
           department,
           visit_type,
           status,
-          created_at
+          created_at,
+          consultation_started_at,
+          completed_at,
+          waiting_time_minutes,
+          priority_at_consultation
         FROM patient_visits
         WHERE patient_id = $1
         ORDER BY created_at DESC;
