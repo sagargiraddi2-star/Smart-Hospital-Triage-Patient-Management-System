@@ -3,42 +3,88 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
-const demoPatients = [
-  {
-    id: 'TR-1001',
-    name: 'Aarav Sharma',
-    department: 'Emergency',
-    waiting: '12 min',
-    priority: 'High',
-  },
-  {
-    id: 'TR-1002',
-    name: 'Ananya Rao',
-    department: 'General Medicine',
-    waiting: '24 min',
-    priority: 'Medium',
-  },
-  {
-    id: 'TR-1003',
-    name: 'Rohan Mehta',
-    department: 'Cardiology',
-    waiting: '08 min',
-    priority: 'Normal',
-  },
-  {
-    id: 'TR-1004',
-    name: 'Diya Nair',
-    department: 'General Medicine',
-    waiting: '31 min',
-    priority: 'Medium',
-  },
-];
+const SUMMARY_REFRESH_MS = 60 * 1000;
 
-const demoDepartments = [
-  { name: 'Emergency', patients: 8, percentage: 80, color: 'orange' },
-  { name: 'General Medicine', patients: 12, percentage: 65, color: '' },
-  { name: 'Cardiology', patients: 5, percentage: 40, color: 'blue' },
-];
+const STATUS_LABELS = {
+  waiting: 'Waiting',
+  in_progress: 'In consultation',
+  completed: 'Completed',
+};
+
+const ACTIVITY_LABELS = {
+  registered: 'Registered',
+  consultation_started: 'Consultation started',
+  completed: 'Completed',
+};
+
+function formatPriority(priority) {
+  if (!priority) return 'Awaiting triage';
+
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+// Show only the time for today's events, otherwise date and time.
+function formatActivityTime(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '—';
+
+  const isToday = date.toDateString() === new Date().toDateString();
+
+  return date.toLocaleString(
+    'en-IN',
+    isToday
+      ? { hour: '2-digit', minute: '2-digit' }
+      : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+  );
+}
+
+function getInitials(name) {
+  return (name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+}
+
+// Never show placeholder numbers: no data yet means "—".
+function formatCount(value) {
+  return typeof value === 'number' ? String(value).padStart(2, '0') : '—';
+}
+
+// Read a JSON API response safely. If the server returned HTML or
+// anything else, explain the problem instead of throwing a parse error.
+async function readDashboardResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      response.status === 404
+        ? 'The dashboard API was not found on the backend (HTTP 404). ' +
+            'Restart the TRIORA backend so it loads the latest routes.'
+        : `The backend returned an unexpected response (HTTP ${response.status}).`
+    );
+  }
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || `Could not load dashboard information (HTTP ${response.status}).`
+    );
+  }
+
+  return data;
+}
+
+function getBrowserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -72,6 +118,55 @@ function Dashboard() {
     loadUser();
   }, [navigate]);
 
+  const [summary, setSummary] = useState(null);
+  const [summaryError, setSummaryError] = useState('');
+
+  // Load real dashboard data once the user is confirmed, then refresh
+  // it every minute while the dashboard is open.
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let cancelled = false;
+
+    async function loadSummary() {
+      try {
+        const timezone = encodeURIComponent(getBrowserTimezone());
+        const response = await fetch(
+          `http://localhost:5000/api/dashboard/summary?timezone=${timezone}`,
+          { credentials: 'include' }
+        );
+
+        if (response.status === 401) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        const data = await readDashboardResponse(response);
+
+        if (!cancelled) {
+          setSummary(data);
+          setSummaryError('');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSummaryError(
+            error instanceof TypeError
+              ? 'Could not connect to the TRIORA backend.'
+              : error.message
+          );
+        }
+      }
+    }
+
+    loadSummary();
+    const refreshTimer = setInterval(loadSummary, SUMMARY_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(refreshTimer);
+    };
+  }, [user, navigate]);
+
   async function handleLogout() {
     try {
       const response = await fetch(
@@ -101,7 +196,9 @@ function Dashboard() {
     return null;
   }
 
+  // /api/auth/me returns full_name.
   const fullName =
+    user.full_name ||
     user.fullName ||
     user.name ||
     user.email?.split('@')[0] ||
@@ -117,6 +214,23 @@ function Dashboard() {
     .join('');
 
   const role = user.role || 'Staff';
+
+  const stats = summary?.stats;
+  // Before the first successful load: "Loading…" or, after a failure,
+  // "Unavailable" — never an endless loading state.
+  const pendingNote = summaryError ? 'Unavailable' : 'Loading…';
+  const recentActivity = summary?.recentActivity || [];
+  const departmentWorkload = summary?.departmentWorkload || [];
+  const busiestDepartmentTotal = Math.max(
+    1,
+    ...departmentWorkload.map((department) => department.total)
+  );
+  const lastUpdated = summary
+    ? new Date(summary.generatedAt).toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   return (
     <div className="dashboard-page">
@@ -251,10 +365,20 @@ function Dashboard() {
             </div>
 
             <div className="dashboard-date">
-              TRIORA Staff Workspace
+              {lastUpdated
+                ? `Live data · Updated ${lastUpdated}`
+                : 'TRIORA Staff Workspace'}
             </div>
 
           </section>
+
+          {summaryError && (
+            <p className="dashboard-error" role="alert">
+              {summaryError}
+              {summary &&
+                ` Showing the figures from ${lastUpdated}; the dashboard will retry automatically.`}
+            </p>
+          )}
 
           {/* STATISTICS */}
 
@@ -263,17 +387,21 @@ function Dashboard() {
             <article className="dashboard-stat-card">
               <div className="dashboard-stat-top">
                 <span className="dashboard-stat-label">
-                  Registered today
+                  Patients registered today
                 </span>
                 <span className="dashboard-stat-icon stat-icon-blue">
                   ♙
                 </span>
               </div>
 
-              <strong className="dashboard-stat-value">128</strong>
+              <strong className="dashboard-stat-value">
+                {formatCount(stats?.patientsToday)}
+              </strong>
 
               <span className="dashboard-stat-note">
-                Illustrative patient visits
+                {stats
+                  ? `${stats.visitsToday} ${stats.visitsToday === 1 ? 'visit' : 'visits'} since midnight`
+                  : pendingNote}
               </span>
             </article>
 
@@ -287,10 +415,14 @@ function Dashboard() {
                 </span>
               </div>
 
-              <strong className="dashboard-stat-value">24</strong>
+              <strong className="dashboard-stat-value">
+                {formatCount(stats?.waitingPatients)}
+              </strong>
 
               <span className="dashboard-stat-note">
-                Across all departments
+                {stats
+                  ? `${stats.inConsultationPatients} in consultation`
+                  : pendingNote}
               </span>
             </article>
 
@@ -304,27 +436,33 @@ function Dashboard() {
                 </span>
               </div>
 
-              <strong className="dashboard-stat-value">08</strong>
+              <strong className="dashboard-stat-value">
+                {formatCount(stats?.emergencyActive)}
+              </strong>
 
               <span className="dashboard-stat-note">
-                Illustrative active cases
+                {stats
+                  ? `Active · ${stats.emergencyWaiting} still waiting`
+                  : pendingNote}
               </span>
             </article>
 
             <article className="dashboard-stat-card">
               <div className="dashboard-stat-top">
                 <span className="dashboard-stat-label">
-                  Departments
+                  Active departments
                 </span>
                 <span className="dashboard-stat-icon stat-icon-purple">
                   ▦
                 </span>
               </div>
 
-              <strong className="dashboard-stat-value">06</strong>
+              <strong className="dashboard-stat-value">
+                {formatCount(stats?.activeDepartments)}
+              </strong>
 
               <span className="dashboard-stat-note">
-                Illustrative configured departments
+                Departments with patients right now
               </span>
             </article>
 
@@ -340,8 +478,8 @@ function Dashboard() {
 
               <div className="dashboard-panel-heading">
                 <div>
-                  <h2>Recent patient queue</h2>
-                  <p>Illustrative patient records</p>
+                  <h2>Recent patient activity</h2>
+                  <p>Latest registrations, consultations and completions</p>
                 </div>
 
                 <Link to="/patients" className="dashboard-panel-link">
@@ -351,31 +489,56 @@ function Dashboard() {
 
               <div className="dashboard-queue-list" id="queues">
 
-                {demoPatients.map((patient) => (
+                {summary && recentActivity.length === 0 && (
+                  <p className="dashboard-empty">
+                    No patient visits have been recorded yet.
+                  </p>
+                )}
 
-                  <div className="dashboard-queue-row" key={patient.id}>
+                {!summary && (
+                  <p className="dashboard-empty">
+                    {summaryError
+                      ? 'Patient activity could not be loaded.'
+                      : 'Loading patient activity…'}
+                  </p>
+                )}
+
+                {recentActivity.map((visit) => (
+
+                  <Link
+                    to={`/patients/${visit.patient_id}`}
+                    className="dashboard-queue-row dashboard-activity-row"
+                    key={visit.visit_id}
+                  >
 
                     <div className="queue-patient-avatar">
-                      {patient.name
-                        .split(' ')
-                        .map((part) => part[0])
-                        .join('')}
+                      {getInitials(visit.full_name)}
                     </div>
 
                     <div className="queue-patient-info">
-                      <strong>{patient.name}</strong>
+                      <strong>{visit.full_name}</strong>
                       <small>
-                        {patient.id} · {patient.department} · {patient.waiting}
+                        {visit.patient_number} · {visit.department || 'No department'} ·{' '}
+                        {visit.visit_type === 'emergency' ? 'Emergency' : 'Normal'} visit
+                      </small>
+                      <small>
+                        {ACTIVITY_LABELS[visit.activity_type]}{' '}
+                        {formatActivityTime(visit.activity_at)}
                       </small>
                     </div>
 
-                    <span
-                      className={`queue-priority priority-${patient.priority.toLowerCase()}`}
-                    >
-                      {patient.priority}
-                    </span>
+                    <div className="dashboard-activity-badges">
+                      <span
+                        className={`queue-priority priority-${visit.triage_priority || 'unassigned'}`}
+                      >
+                        {formatPriority(visit.triage_priority)}
+                      </span>
+                      <span className={`dashboard-status status-${visit.status}`}>
+                        {STATUS_LABELS[visit.status] || visit.status}
+                      </span>
+                    </div>
 
-                  </div>
+                  </Link>
 
                 ))}
 
@@ -390,35 +553,64 @@ function Dashboard() {
               <div className="dashboard-panel-heading">
                 <div>
                   <h2>Department workload</h2>
-                  <p>Illustrative workload distribution</p>
+                  <p>Active patients by department</p>
                 </div>
 
-                <span className="dashboard-panel-link">
-                  Overview
-                </span>
+                <Link to="/queues" className="dashboard-panel-link">
+                  Queues →
+                </Link>
               </div>
 
               <div className="dashboard-department-list">
 
-                {demoDepartments.map((department) => (
+                {summary && departmentWorkload.length === 0 && (
+                  <p className="dashboard-empty">
+                    No patients are waiting or in consultation.
+                  </p>
+                )}
 
-                  <div key={department.name}>
+                {!summary && (
+                  <p className="dashboard-empty">
+                    {summaryError
+                      ? 'Department workload could not be loaded.'
+                      : 'Loading workload…'}
+                  </p>
+                )}
+
+                {departmentWorkload.map((department) => (
+
+                  <div key={department.department}>
 
                     <div className="department-workload-header">
-                      <span>{department.name}</span>
-                      <span>{department.patients} patients</span>
+                      <span>{department.department}</span>
+                      <span>
+                        {department.total} active · {department.waiting} waiting ·{' '}
+                        {department.in_consultation} in consultation
+                      </span>
                     </div>
 
                     <div className="workload-track">
                       <div
-                        className={`workload-fill ${department.color}`}
-                        style={{ width: `${department.percentage}%` }}
+                        className="workload-fill"
+                        style={{
+                          width: `${Math.round(
+                            (department.total / busiestDepartmentTotal) * 100
+                          )}%`,
+                        }}
                       />
                     </div>
 
                   </div>
 
                 ))}
+
+                {departmentWorkload.length > 0 && (
+                  <p className="dashboard-footnote">
+                    Bar length is relative to the busiest department.
+                    Departments without active patients are not listed
+                    until department management is added.
+                  </p>
+                )}
 
               </div>
 
@@ -432,38 +624,47 @@ function Dashboard() {
 
             <div className="dashboard-panel-heading">
               <div>
-                <h2>Reassessment alerts</h2>
-                <p>Illustrative alerts for the dashboard preview</p>
+                <h2>Alerts</h2>
+                <p>Patients who need staff attention</p>
               </div>
 
-              <span className="dashboard-panel-link">
-                Attention required
-              </span>
+              <Link to="/queues" className="dashboard-panel-link">
+                Open queues →
+              </Link>
             </div>
+
+            {stats && (
+              <div className="dashboard-alert-item">
+
+                <span className="dashboard-alert-icon">!</span>
+
+                <div>
+                  <strong>
+                    {stats.awaitingTriage === 0
+                      ? 'All active patients have been triaged'
+                      : `${stats.awaitingTriage} active ${
+                          stats.awaitingTriage === 1 ? 'patient is' : 'patients are'
+                        } awaiting triage`}
+                  </strong>
+                  <p>
+                    Waiting or in-consultation patients with no recorded
+                    triage assessment.
+                  </p>
+                </div>
+
+              </div>
+            )}
 
             <div className="dashboard-alert-item">
 
               <span className="dashboard-alert-icon">◷</span>
 
               <div>
-                <strong>Reassessment due · TR-1005</strong>
+                <strong>Reassessment alerts are not yet available</strong>
                 <p>
-                  A fictional patient record has reached its example
-                  reassessment interval.
-                </p>
-              </div>
-
-            </div>
-
-            <div className="dashboard-alert-item">
-
-              <span className="dashboard-alert-icon">!</span>
-
-              <div>
-                <strong>Extended waiting time · TR-1006</strong>
-                <p>
-                  A fictional patient record has exceeded its example
-                  waiting-time threshold.
+                  Due and overdue reassessment alerts will appear here once
+                  reassessment intervals have been configured and approved
+                  by qualified clinical staff.
                 </p>
               </div>
 

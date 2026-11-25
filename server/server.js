@@ -76,6 +76,41 @@ app.use('/api/triage', require('./routes/triage'));
 // Patient queue routes.
 app.use('/api/queues', require('./routes/queues'));
 
+// Dashboard overview routes.
+app.use('/api/dashboard', require('./routes/dashboard'));
+
+// Unknown API routes return JSON instead of Express's default HTML page,
+// so the frontend never tries to parse an HTML error as JSON.
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// Unexpected errors (including malformed JSON request bodies) also
+// return JSON. Details are logged on the server, not sent to the client.
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  const status =
+    Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+      ? error.status
+      : 500;
+
+  if (status === 500) {
+    console.error('Unexpected server error:', error.message);
+  }
+
+  return res.status(status).json({
+    message:
+      status === 500
+        ? 'An unexpected server error occurred.'
+        : 'The request could not be processed.',
+  });
+});
+
 // Start the server.
 const server = app.listen(PORT, () => {
   console.log(`TRIORA backend running at http://localhost:${PORT}`);
