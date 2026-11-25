@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import './Queues.css';
 
 const API_URL = 'http://localhost:5000/api/queues';
+const DEPARTMENTS_URL = 'http://localhost:5000/api/departments';
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
 // How often the live waiting timer ticks and the queue reloads.
@@ -53,6 +54,14 @@ function formatPriority(priority) {
   return priority.charAt(0).toUpperCase() + priority.slice(1);
 }
 
+// Identify a visit's department by its database ID. Visits that are not
+// linked to a department fall back to their recorded name.
+function getDepartmentKey(patient) {
+  return patient.department_id
+    ? `id:${patient.department_id}`
+    : `name:${patient.department || ''}`;
+}
+
 // Waiting patients that share the same queue, department and priority.
 // Manual reordering is only possible inside this group.
 function getReorderGroup(queueList, patient) {
@@ -60,24 +69,53 @@ function getReorderGroup(queueList, patient) {
     (other) =>
       other.status === 'waiting' &&
       other.visit_type === patient.visit_type &&
-      (other.department || null) === (patient.department || null) &&
+      getDepartmentKey(other) === getDepartmentKey(patient) &&
       (other.triage_priority || null) === (patient.triage_priority || null)
   );
 }
 
-// Load active visits from the API.
-async function requestQueues() {
-  const response = await fetch(API_URL, {
-    credentials: 'include',
-  });
-
-  const data = await response.json();
+async function readJson(response, fallbackMessage) {
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json')
+    ? await response.json()
+    : {};
 
   if (!response.ok) {
-    throw new Error(data.message || 'Could not load patient queues.');
+    throw new Error(data.message || fallbackMessage);
   }
 
-  return data.queues || [];
+  return data;
+}
+
+// Load active visits and the configured active departments.
+async function requestQueues() {
+  const [queueResponse, departmentResponse] = await Promise.all([
+    fetch(API_URL, { credentials: 'include' }),
+    fetch(`${DEPARTMENTS_URL}?status=active`, { credentials: 'include' }),
+  ]);
+
+  const queueData = await readJson(
+    queueResponse,
+    'Could not load patient queues.'
+  );
+  // The queue must still work if the department list cannot be loaded;
+  // the filters then fall back to the departments of patients shown.
+  let departmentList = [];
+
+  try {
+    const departmentData = await readJson(
+      departmentResponse,
+      'Could not load departments.'
+    );
+    departmentList = departmentData.departments || [];
+  } catch (error) {
+    console.error(error.message);
+  }
+
+  return {
+    queueList: queueData.queues || [],
+    departmentList,
+  };
 }
 
 function getNeighbor(queueList, patient, direction) {
@@ -100,6 +138,8 @@ function Queues() {
   const queueType = isEmergencyQueue ? 'emergency' : 'normal';
 
   const [queues, setQueues] = useState([]);
+  const [configuredDepartments, setConfiguredDepartments] = useState([]);
+  // 'All' or a department key from getDepartmentKey().
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -113,8 +153,9 @@ function Queues() {
     () =>
       requestQueues()
         .then(
-          (queueList) => {
+          ({ queueList, departmentList }) => {
             setQueues(queueList);
+            setConfiguredDepartments(departmentList);
             setError('');
             setNow(Date.now());
           },
@@ -235,15 +276,34 @@ function Queues() {
     (patient) => patient.visit_type === queueType
   );
 
-  // Get the departments available in this queue.
+  // Filter options: every configured active department, plus any inactive
+  // or unlinked department that still has patients in this queue.
+  const departmentOptions = configuredDepartments.map((department) => ({
+    key: `id:${department.id}`,
+    label: department.name,
+    inactive: false,
+  }));
+
+  for (const patient of typeQueues) {
+    const key = getDepartmentKey(patient);
+
+    if (!departmentOptions.some((option) => option.key === key)) {
+      departmentOptions.push({
+        key,
+        label: patient.department || 'Unassigned',
+        inactive: patient.department_is_active === false,
+      });
+    }
+  }
+
   const departments = [
-    'All',
-    ...new Set(
-      typeQueues
-        .map((patient) => patient.department)
-        .filter(Boolean)
-    ),
+    { key: 'All', label: 'All Departments', inactive: false },
+    ...departmentOptions,
   ];
+
+  const selectedDepartmentLabel =
+    departments.find((option) => option.key === selectedDepartment)?.label ||
+    'Department';
 
   // Apply the selected department filter.
   const filteredQueues =
@@ -251,7 +311,7 @@ function Queues() {
       ? typeQueues
       : typeQueues.filter(
           (patient) =>
-            patient.department === selectedDepartment
+            getDepartmentKey(patient) === selectedDepartment
         );
 
   const waitingCount = filteredQueues.filter(
@@ -338,18 +398,17 @@ function Queues() {
         <div className="queue-department-filters">
           {departments.map((department) => (
             <button
-              key={department}
+              key={department.key}
               type="button"
               className={`queue-filter-button ${
-                selectedDepartment === department
+                selectedDepartment === department.key
                   ? 'active'
                   : ''
               }`}
-              onClick={() => setSelectedDepartment(department)}
+              onClick={() => setSelectedDepartment(department.key)}
             >
-              {department === 'All'
-                ? 'All Departments'
-                : department}
+              {department.label}
+              {department.inactive && ' (inactive)'}
             </button>
           ))}
         </div>
@@ -363,7 +422,7 @@ function Queues() {
             <h2>
               {selectedDepartment === 'All'
                 ? 'Active Patient List'
-                : `${selectedDepartment} Queue`}
+                : `${selectedDepartmentLabel} Queue`}
             </h2>
 
             <p>

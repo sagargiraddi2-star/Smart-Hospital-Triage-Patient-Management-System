@@ -101,6 +101,10 @@ async function setupDatabase() {
     //    It never drops tables or columns and never deletes records.
     await runPhase2Migration();
 
+    // 8. Phase 4 migration: managed departments linked to patient visits.
+    //    Additive and safe to run more than once.
+    await runPhase4Migration();
+
     console.log('Database setup completed successfully!');
     console.log(
       'Users, patients, patient_visits and triage_assessments tables are ready.'
@@ -162,6 +166,94 @@ async function runPhase2Migration() {
 
     await client.query('COMMIT');
     console.log('Phase 2 queue migration applied.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// The department options that were previously hardcoded in the
+// patient registration form.
+const INITIAL_DEPARTMENTS = [
+  'Emergency',
+  'General Medicine',
+  'Cardiology',
+  'Orthopedics',
+  'Neurology',
+  'Pediatrics',
+];
+
+async function runPhase4Migration() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // Department names are unique regardless of letter case.
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS departments_name_unique
+      ON departments (LOWER(name));
+    `);
+
+    // Seed the six departments from the old registration dropdown.
+    await client.query(
+      `
+        INSERT INTO departments (name)
+        SELECT UNNEST($1::TEXT[])
+        ON CONFLICT ((LOWER(name))) DO NOTHING;
+      `,
+      [INITIAL_DEPARTMENTS]
+    );
+
+    // Any historical department text that is not one of the six becomes
+    // an INACTIVE department, so its visits stay linked and readable but
+    // it is never offered for new visits.
+    await client.query(`
+      INSERT INTO departments (name, is_active)
+      SELECT DISTINCT ON (LOWER(TRIM(department)))
+        TRIM(department),
+        FALSE
+      FROM patient_visits
+      WHERE NULLIF(TRIM(department), '') IS NOT NULL
+      ORDER BY LOWER(TRIM(department)), TRIM(department)
+      ON CONFLICT ((LOWER(name))) DO NOTHING;
+    `);
+
+    // Link visits to departments. The original text column is kept as the
+    // department name recorded at registration time.
+    await client.query(`
+      ALTER TABLE patient_visits
+        ADD COLUMN IF NOT EXISTS department_id INTEGER
+          REFERENCES departments(id) ON DELETE RESTRICT;
+    `);
+
+    await client.query(`
+      UPDATE patient_visits pv
+      SET department_id = d.id
+      FROM departments d
+      WHERE pv.department_id IS NULL
+        AND LOWER(TRIM(pv.department)) = LOWER(d.name);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_patient_visits_department
+      ON patient_visits (department_id);
+    `);
+
+    await client.query('COMMIT');
+    console.log('Phase 4 department migration applied.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

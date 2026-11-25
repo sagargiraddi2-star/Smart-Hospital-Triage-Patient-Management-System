@@ -419,3 +419,27 @@
 }
 
 
+
+/* Department dropdown status messages */
+
+.patients-field-hint {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.patients-field-hint.error {
+  color: #b91c1c;
+}
+
+.patients-field-hint button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1d4ed8;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -77,7 +77,9 @@ router.get('/', requireAuth, async (req, res) => {
         p.full_name,
         p.date_of_birth,
         p.gender,
-        pv.department,
+        COALESCE(d.name, pv.department) AS department,
+        pv.department_id,
+        d.is_active AS department_is_active,
         pv.visit_type,
         pv.status,
         pv.created_at AS arrival_time,
@@ -95,6 +97,9 @@ router.get('/', requireAuth, async (req, res) => {
 
       INNER JOIN patients p
         ON pv.patient_id = p.id
+
+      LEFT JOIN departments d
+        ON d.id = pv.department_id
 
       LEFT JOIN LATERAL (${LATEST_ASSESSMENT_SQL}) ta ON TRUE
 
@@ -144,7 +149,9 @@ router.get('/completed', requireAuth, async (req, res) => {
         p.full_name,
         p.date_of_birth,
         p.gender,
-        pv.department,
+        COALESCE(d.name, pv.department) AS department,
+        pv.department_id,
+        d.is_active AS department_is_active,
         pv.visit_type,
         pv.status,
         pv.created_at AS arrival_time,
@@ -162,6 +169,9 @@ router.get('/completed', requireAuth, async (req, res) => {
 
       INNER JOIN patients p
         ON pv.patient_id = p.id
+
+      LEFT JOIN departments d
+        ON d.id = pv.department_id
 
       LEFT JOIN LATERAL (${LATEST_ASSESSMENT_SQL}) ta ON TRUE
 
@@ -471,6 +481,7 @@ router.patch('/:visitId/position', requireAuth, async (req, res) => {
             pv.id,
             pv.status,
             pv.visit_type,
+            pv.department_id,
             pv.department,
             ta.triage_priority
           FROM patient_visits pv
@@ -501,7 +512,8 @@ router.patch('/:visitId/position', requireAuth, async (req, res) => {
           LEFT JOIN LATERAL (${LATEST_ASSESSMENT_SQL}) ta ON TRUE
           WHERE pv.status = 'waiting'
             AND pv.visit_type = $1
-            AND pv.department IS NOT DISTINCT FROM $2
+            AND pv.department_id IS NOT DISTINCT FROM $2
+            AND ($2::INTEGER IS NOT NULL OR pv.department IS NOT DISTINCT FROM $4)
             AND ta.triage_priority IS NOT DISTINCT FROM $3
           ORDER BY
             pv.queue_position ASC NULLS LAST,
@@ -509,7 +521,12 @@ router.patch('/:visitId/position', requireAuth, async (req, res) => {
             pv.id ASC
           FOR UPDATE OF pv;
         `,
-        [target.visit_type, target.department, target.triage_priority]
+        [
+          target.visit_type,
+          target.department_id,
+          target.triage_priority,
+          target.department,
+        ]
       );
 
       const ids = groupResult.rows.map((row) => row.id);

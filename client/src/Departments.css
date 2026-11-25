@@ -1,0 +1,117 @@
+/* =========================================
+   DEPARTMENTS PAGE
+   Builds on the shared queue page styles in Queues.css.
+========================================= */
+
+.department-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.department-add-form .queues-add-button {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.department-add-form .queues-add-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.department-input {
+  min-width: 240px;
+  padding: 11px 14px;
+  border: 1px solid #dbe2ea;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #17243a;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.department-input:focus {
+  border-color: #2563eb;
+  outline: 2px solid #dbeafe;
+}
+
+.department-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.department-status-badge {
+  display: inline-flex;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.department-status-badge.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.department-status-badge.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.department-row-inactive td {
+  color: #94a3b8;
+}
+
+.department-row-inactive .queue-patient-name {
+  color: #64748b;
+}
+
+.department-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.department-secondary-action {
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.department-secondary-action:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.department-secondary-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.queue-status-action.deactivate {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.queue-status-action.deactivate:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+@media (max-width: 650px) {
+  .department-input {
+    min-width: 0;
+    width: 100%;
+  }
+}

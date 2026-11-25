@@ -52,9 +52,58 @@ function Patients() {
     dateOfBirth: '',
     gender: '',
     phone: '',
-    department: '',
+    departmentId: '',
     visitType: 'normal',
   });
+
+  // Active departments for the registration form, loaded from the database
+  // each time the form is opened so changes are picked up.
+  const [departments, setDepartments] = useState([]);
+  const [departmentsStatus, setDepartmentsStatus] = useState('idle');
+  const [departmentsError, setDepartmentsError] = useState('');
+
+  async function loadDepartments() {
+    try {
+      setDepartmentsStatus('loading');
+      setDepartmentsError('');
+
+      const response = await fetch(
+        'http://localhost:5000/api/departments?status=active',
+        { credentials: 'include' }
+      );
+
+      if (response.status === 401) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : {};
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Could not load departments.');
+      }
+
+      const activeDepartments = data.departments || [];
+
+      setDepartments(activeDepartments);
+      setDepartmentsStatus('ready');
+
+      // Clear a selection that is no longer an active department.
+      setFormData((previous) =>
+        activeDepartments.some(
+          (department) => String(department.id) === previous.departmentId
+        )
+          ? previous
+          : { ...previous, departmentId: '' }
+      );
+    } catch (error) {
+      setDepartmentsError(error.message || 'Could not load departments.');
+      setDepartmentsStatus('error');
+    }
+  }
 
   useEffect(() => {
     loadPatients();
@@ -138,7 +187,7 @@ function Patients() {
         dateOfBirth: '',
         gender: '',
         phone: '',
-        department: '',
+        departmentId: '',
         visitType: 'normal',
       });
 
@@ -193,6 +242,10 @@ function Patients() {
         <button
           className="patients-primary-button"
           onClick={() => {
+            if (!showForm) {
+              loadDepartments();
+            }
+
             setShowForm((previous) => !previous);
             setError('');
             setSuccess('');
@@ -283,22 +336,42 @@ function Patients() {
               </div>
 
               <div className="patients-field">
-                <label htmlFor="department">Department *</label>
+                <label htmlFor="departmentId">Department *</label>
                 <select
-                  id="department"
-                  name="department"
-                  value={formData.department}
+                  id="departmentId"
+                  name="departmentId"
+                  value={formData.departmentId}
                   onChange={handleInputChange}
                   required
+                  disabled={departmentsStatus !== 'ready' || departments.length === 0}
                 >
-                  <option value="">Select department</option>
-                  <option value="Emergency">Emergency</option>
-                  <option value="General Medicine">General Medicine</option>
-                  <option value="Cardiology">Cardiology</option>
-                  <option value="Orthopedics">Orthopedics</option>
-                  <option value="Neurology">Neurology</option>
-                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="">
+                    {departmentsStatus === 'loading'
+                      ? 'Loading departments…'
+                      : 'Select department'}
+                  </option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
                 </select>
+
+                {departmentsStatus === 'error' && (
+                  <small className="patients-field-hint error">
+                    {departmentsError}{' '}
+                    <button type="button" onClick={loadDepartments}>
+                      Try again
+                    </button>
+                  </small>
+                )}
+
+                {departmentsStatus === 'ready' && departments.length === 0 && (
+                  <small className="patients-field-hint error">
+                    No active departments are configured. Add or activate one
+                    on the Departments page.
+                  </small>
+                )}
               </div>
 
               <div className="patients-field patients-field-full">

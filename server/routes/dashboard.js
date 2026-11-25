@@ -56,7 +56,8 @@ router.get('/summary', requireAuth, async (req, res) => {
               pv.patient_id,
               pv.status,
               pv.visit_type,
-              pv.department,
+              pv.department_id,
+              NULLIF(TRIM(pv.department), '') AS department,
               EXISTS (
                 SELECT 1
                 FROM triage_assessments ta
@@ -96,10 +97,16 @@ router.get('/summary', requireAuth, async (req, res) => {
               FROM active
               WHERE visit_type = 'emergency' AND status = 'waiting'
             )::INTEGER AS emergency_waiting,
+            -- Configured departments that are currently active.
             (
-              SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(department), ''), 'Unassigned'))
-              FROM active
+              SELECT COUNT(*)
+              FROM departments
+              WHERE is_active
             )::INTEGER AS active_departments,
+            (
+              SELECT COUNT(DISTINCT COALESCE(department_id::TEXT, department, 'Unassigned'))
+              FROM active
+            )::INTEGER AS departments_with_patients,
             (
               SELECT COUNT(DISTINCT patient_id)
               FROM active
@@ -119,7 +126,7 @@ router.get('/summary', requireAuth, async (req, res) => {
             pv.patient_id,
             p.patient_number,
             p.full_name,
-            pv.department,
+            COALESCE(d.name, pv.department) AS department,
             pv.visit_type,
             pv.status,
             pv.created_at AS arrival_time,
@@ -137,6 +144,8 @@ router.get('/summary', requireAuth, async (req, res) => {
           FROM patient_visits pv
           INNER JOIN patients p
             ON p.id = pv.patient_id
+          LEFT JOIN departments d
+            ON d.id = pv.department_id
           LEFT JOIN LATERAL (
             SELECT triage_priority
             FROM triage_assessments
@@ -150,22 +159,46 @@ router.get('/summary', requireAuth, async (req, res) => {
         [RECENT_ACTIVITY_LIMIT]
       ),
 
-      // Current workload per department, from active visits only.
-      // Departments come from patient_visits.department until Phase 4
-      // introduces managed departments.
+      // Current workload for every active department (including those
+      // with no patients), any inactive department that still has active
+      // patients, and any active visit not linked to a department.
       pool.query(
         `
-          SELECT
-            COALESCE(NULLIF(TRIM(department), ''), 'Unassigned') AS department,
-            COUNT(DISTINCT patient_id) FILTER (WHERE status = 'waiting')::INTEGER
-              AS waiting,
-            COUNT(DISTINCT patient_id) FILTER (WHERE status = 'in_progress')::INTEGER
-              AS in_consultation,
-            COUNT(DISTINCT patient_id)::INTEGER AS total
-          FROM patient_visits
-          WHERE status IN ('waiting', 'in_progress')
-          GROUP BY 1
-          ORDER BY total DESC, department ASC;
+          SELECT *
+          FROM (
+            SELECT
+              d.name AS department,
+              d.id AS department_id,
+              d.is_active,
+              COUNT(DISTINCT pv.patient_id)
+                FILTER (WHERE pv.status = 'waiting')::INTEGER AS waiting,
+              COUNT(DISTINCT pv.patient_id)
+                FILTER (WHERE pv.status = 'in_progress')::INTEGER AS in_consultation,
+              COUNT(DISTINCT pv.patient_id)::INTEGER AS total
+            FROM departments d
+            LEFT JOIN patient_visits pv
+              ON pv.department_id = d.id
+              AND pv.status IN ('waiting', 'in_progress')
+            GROUP BY d.id
+            HAVING d.is_active OR COUNT(pv.id) > 0
+
+            UNION ALL
+
+            SELECT
+              COALESCE(NULLIF(TRIM(department), ''), 'Unassigned'),
+              NULL,
+              NULL,
+              COUNT(DISTINCT patient_id)
+                FILTER (WHERE status = 'waiting')::INTEGER,
+              COUNT(DISTINCT patient_id)
+                FILTER (WHERE status = 'in_progress')::INTEGER,
+              COUNT(DISTINCT patient_id)::INTEGER
+            FROM patient_visits
+            WHERE department_id IS NULL
+              AND status IN ('waiting', 'in_progress')
+            GROUP BY 1
+          ) workload
+          ORDER BY total DESC, LOWER(department) ASC;
         `
       ),
     ]);
@@ -183,6 +216,7 @@ router.get('/summary', requireAuth, async (req, res) => {
         emergencyActive: stats.emergency_active,
         emergencyWaiting: stats.emergency_waiting,
         activeDepartments: stats.active_departments,
+        departmentsWithPatients: stats.departments_with_patients,
         awaitingTriage: stats.awaiting_triage,
       },
       recentActivity: activityResult.rows,

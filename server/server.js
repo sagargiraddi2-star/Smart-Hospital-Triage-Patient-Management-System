@@ -79,6 +79,9 @@ app.use('/api/queues', require('./routes/queues'));
 // Dashboard overview routes.
 app.use('/api/dashboard', require('./routes/dashboard'));
 
+// Department management routes.
+app.use('/api/departments', require('./routes/departments'));
+
 // Unknown API routes return JSON instead of Express's default HTML page,
 // so the frontend never tries to parse an HTML error as JSON.
 app.use('/api', (req, res) => {

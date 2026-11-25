@@ -30,17 +30,22 @@ router.get('/', requireAuth, async (req, res) => {
         p.phone,
         p.created_at,
         latest_visit.department,
+        latest_visit.department_id,
         latest_visit.visit_type,
         latest_visit.status
       FROM patients p
       LEFT JOIN LATERAL (
         SELECT
-          department,
-          visit_type,
-          status
-        FROM patient_visits
-        WHERE patient_id = p.id
-        ORDER BY created_at DESC
+          -- Current department name; falls back to the name recorded at
+          -- registration for any visit not linked to a department.
+          COALESCE(d.name, pv.department) AS department,
+          pv.department_id,
+          pv.visit_type,
+          pv.status
+        FROM patient_visits pv
+        LEFT JOIN departments d ON d.id = pv.department_id
+        WHERE pv.patient_id = p.id
+        ORDER BY pv.created_at DESC
         LIMIT 1
       ) latest_visit ON TRUE
       ORDER BY p.created_at DESC;
@@ -90,18 +95,21 @@ router.get('/:id', requireAuth, async (req, res) => {
     const visitsResult = await pool.query(
       `
         SELECT
-          id,
-          department,
-          visit_type,
-          status,
-          created_at,
-          consultation_started_at,
-          completed_at,
-          waiting_time_minutes,
-          priority_at_consultation
-        FROM patient_visits
-        WHERE patient_id = $1
-        ORDER BY created_at DESC;
+          pv.id,
+          COALESCE(d.name, pv.department) AS department,
+          pv.department_id,
+          d.is_active AS department_is_active,
+          pv.visit_type,
+          pv.status,
+          pv.created_at,
+          pv.consultation_started_at,
+          pv.completed_at,
+          pv.waiting_time_minutes,
+          pv.priority_at_consultation
+        FROM patient_visits pv
+        LEFT JOIN departments d ON d.id = pv.department_id
+        WHERE pv.patient_id = $1
+        ORDER BY pv.created_at DESC;
       `,
       [patientId]
     );
@@ -131,9 +139,11 @@ router.post('/', requireAuth, async (req, res) => {
       dateOfBirth,
       gender,
       phone,
-      department,
+      departmentId,
       visitType,
     } = req.body;
+
+    const parsedDepartmentId = Number(departmentId);
 
     // Validate required fields.
     if (
@@ -141,7 +151,7 @@ router.post('/', requireAuth, async (req, res) => {
       !dateOfBirth ||
       !gender ||
       !phone?.trim() ||
-      !department?.trim() ||
+      !departmentId ||
       !visitType
     ) {
       return res.status(400).json({
@@ -163,6 +173,12 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
 
+    if (!Number.isInteger(parsedDepartmentId) || parsedDepartmentId <= 0) {
+      return res.status(400).json({
+        message: 'Please select a valid department.',
+      });
+    }
+
     const pool = req.app.locals.pool;
 
     // Get a database connection.
@@ -171,6 +187,30 @@ router.post('/', requireAuth, async (req, res) => {
     // Start a transaction so both records are saved together.
     await client.query('BEGIN');
     transactionStarted = true;
+
+    // The department must exist and be active. FOR SHARE stops it from
+    // being renamed or deactivated until this registration is saved.
+    const departmentResult = await client.query(
+      `
+        SELECT id, name
+        FROM departments
+        WHERE id = $1 AND is_active
+        FOR SHARE;
+      `,
+      [parsedDepartmentId]
+    );
+
+    const department = departmentResult.rows[0];
+
+    if (!department) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+
+      return res.status(400).json({
+        message:
+          'The selected department is not available. Please choose an active department.',
+      });
+    }
 
     // 1. Create the patient record.
     const patientResult = await client.query(
@@ -210,16 +250,19 @@ router.post('/', requireAuth, async (req, res) => {
       `
         INSERT INTO patient_visits (
           patient_id,
+          department_id,
           department,
           visit_type,
           status
         )
-        VALUES ($1, $2, $3, 'waiting')
+        VALUES ($1, $2, $3, $4, 'waiting')
         RETURNING *;
       `,
       [
         patient.id,
-        department.trim(),
+        department.id,
+        // Name recorded at registration time (kept for compatibility).
+        department.name,
         visitType,
       ]
     );

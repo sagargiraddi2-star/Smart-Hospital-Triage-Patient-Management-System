@@ -281,10 +281,10 @@ function Dashboard() {
             <span>Visit History</span>
           </Link>
 
-          <a href="/dashboard#departments" className="sidebar-link">
+          <Link to="/departments" className="sidebar-link">
             <span className="sidebar-icon">▤</span>
             <span>Departments</span>
-          </a>
+          </Link>
 
           <a href="/dashboard#alerts" className="sidebar-link">
             <span className="sidebar-icon">♧</span>
@@ -462,7 +462,9 @@ function Dashboard() {
               </strong>
 
               <span className="dashboard-stat-note">
-                Departments with patients right now
+                {stats
+                  ? `Configured · ${stats.departmentsWithPatients} with patients now`
+                  : pendingNote}
               </span>
             </article>
 
@@ -556,8 +558,8 @@ function Dashboard() {
                   <p>Active patients by department</p>
                 </div>
 
-                <Link to="/queues" className="dashboard-panel-link">
-                  Queues →
+                <Link to="/departments" className="dashboard-panel-link">
+                  Departments →
                 </Link>
               </div>
 
@@ -565,7 +567,7 @@ function Dashboard() {
 
                 {summary && departmentWorkload.length === 0 && (
                   <p className="dashboard-empty">
-                    No patients are waiting or in consultation.
+                    No active departments are configured.
                   </p>
                 )}
 
@@ -579,10 +581,13 @@ function Dashboard() {
 
                 {departmentWorkload.map((department) => (
 
-                  <div key={department.department}>
+                  <div key={department.department_id ?? `unlinked-${department.department}`}>
 
                     <div className="department-workload-header">
-                      <span>{department.department}</span>
+                      <span>
+                        {department.department}
+                        {department.is_active === false && ' (inactive)'}
+                      </span>
                       <span>
                         {department.total} active · {department.waiting} waiting ·{' '}
                         {department.in_consultation} in consultation
@@ -606,9 +611,9 @@ function Dashboard() {
 
                 {departmentWorkload.length > 0 && (
                   <p className="dashboard-footnote">
-                    Bar length is relative to the busiest department.
-                    Departments without active patients are not listed
-                    until department management is added.
+                    Bar length is relative to the busiest department. All
+                    active departments are listed, including those with no
+                    patients.
                   </p>
                 )}
 
