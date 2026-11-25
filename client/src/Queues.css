@@ -1,0 +1,462 @@
+
+/* =========================================
+   PATIENT QUEUES PAGE
+========================================= */
+
+.queues-page {
+  width: 100%;
+  min-height: 100vh;
+  padding: 32px;
+  color: #202b3c;
+  background: #f5f7fb;
+}
+
+/* Back to dashboard */
+
+.queue-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 25px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.queue-back-button:hover {
+  color: #2563eb;
+}
+
+/* Header */
+
+.queues-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.queues-eyebrow {
+  margin: 0 0 9px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.queues-header h1 {
+  margin: 0;
+  color: #17243a;
+  font-size: 32px;
+  font-weight: 750;
+}
+
+.queues-description {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.queues-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 19px;
+  border-radius: 9px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.queues-add-button:hover {
+  background: #1d4ed8;
+}
+
+/* Statistics */
+
+.queue-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.queue-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 22px;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.queue-stat-card span {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.queue-stat-card strong {
+  color: #17243a;
+  font-size: 30px;
+  font-weight: 750;
+}
+
+/* Department filter */
+
+.queue-filter-section {
+  margin-bottom: 26px;
+  padding: 22px 24px;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.queue-filter-heading h2 {
+  margin: 0;
+  color: #17243a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.queue-filter-heading p {
+  margin: 7px 0 17px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.queue-department-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.queue-filter-button {
+  padding: 10px 16px;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.queue-filter-button:hover {
+  border-color: #93b4f5;
+  color: #2563eb;
+  background: #f8faff;
+}
+
+.queue-filter-button.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Patient table section */
+
+.queue-table-section {
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.queue-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 23px 24px;
+  border-bottom: 1px solid #e9edf4;
+}
+
+.queue-section-header h2 {
+  margin: 0;
+  color: #17243a;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.queue-section-header p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.queue-live-label {
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* Table */
+
+.queue-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.queue-table th {
+  padding: 16px 18px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.queue-table td {
+  padding: 17px 18px;
+  border-top: 1px solid #edf0f5;
+  color: #475569;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.queue-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.queue-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.queue-patient-name {
+  color: #17243a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.queue-patient-number {
+  display: inline-block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.queue-waiting-time {
+  color: #334155 !important;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* Priority badges */
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.priority-badge.critical {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.priority-badge.high {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.priority-badge.medium {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.priority-badge.low {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.priority-badge.unassigned {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Visit status badges */
+
+.queue-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.queue-status-badge.waiting {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.queue-status-badge.in_progress {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* View patient link */
+
+.queue-view-link {
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.queue-view-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Loading, empty and error messages */
+
+.queue-message,
+.queue-error {
+  padding: 38px 24px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.queue-message {
+  color: #64748b;
+}
+
+.queue-error {
+  color: #dc2626;
+}
+
+/* Responsive layout */
+
+@media (max-width: 1000px) {
+  .queue-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .queues-page {
+    padding: 20px 14px;
+  }
+
+  .queues-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .queues-header h1 {
+    font-size: 27px;
+  }
+
+  .queue-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .queue-stat-card {
+    padding: 17px;
+  }
+
+  .queue-stat-card strong {
+    font-size: 26px;
+  }
+
+  .queue-filter-section {
+    padding: 18px;
+  }
+
+  .queue-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 19px;
+  }
+}
+
+/* Status update messages */
+
+.queue-success-message {
+  padding: 13px 20px;
+  background: #ecfdf5;
+  color: #047857;
+  border-bottom: 1px solid #d1fae5;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Queue action buttons */
+
+.queue-action-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.queue-status-action {
+  padding: 9px 12px;
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.queue-status-action.start {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.queue-status-action.start:hover {
+  background: #bfdbfe;
+}
+
+.queue-status-action.complete {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.queue-status-action.complete:hover {
+  background: #bbf7d0;
+}
+
+.queue-status-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

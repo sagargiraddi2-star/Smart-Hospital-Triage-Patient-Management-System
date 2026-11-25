@@ -67,6 +67,15 @@ app.get('/', (req, res) => {
 // Registration and authentication routes.
 app.use('/api/auth', require('./routes/auth'));
 
+// Patient management routes.
+app.use('/api/patients', require('./routes/patients'));
+
+// Patient triage routes.
+app.use('/api/triage', require('./routes/triage'));
+
+// Patient queue routes.
+app.use('/api/queues', require('./routes/queues'));
+
 // Start the server.
 const server = app.listen(PORT, () => {
   console.log(`TRIORA backend running at http://localhost:${PORT}`);

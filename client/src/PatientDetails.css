@@ -1,0 +1,482 @@
+
+.patient-details-page {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 36px 0 60px;
+  color: #1d2939;
+}
+
+.patient-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 30px;
+}
+
+.details-back-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: #526579;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.details-back-link:hover {
+  color: #167c80;
+}
+
+.details-eyebrow,
+.details-section-label {
+  display: block;
+  color: #168184;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+}
+
+.patient-details-header h1 {
+  margin: 10px 0 8px;
+  color: #172b3a;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+}
+
+.patient-details-header p {
+  margin: 0;
+  color: #687789;
+  font-size: 15px;
+}
+
+.patient-details-header p strong {
+  color: #34495e;
+}
+
+.details-card {
+  margin-bottom: 24px;
+  padding: 30px;
+  border: 1px solid #e7edf0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 5px 20px rgba(25, 45, 65, 0.04);
+}
+
+.details-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.details-section-heading h2 {
+  margin: 8px 0 0;
+  color: #1d3445;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.details-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 26px 32px;
+}
+
+.details-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.details-info-item span {
+  color: #748294;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.details-info-item strong {
+  color: #293e50;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.visit-count {
+  padding: 8px 13px;
+  border-radius: 20px;
+  background: #edf7f6;
+  color: #167c80;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.visit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.visit-item {
+  padding: 20px;
+  border: 1px solid #e8eef0;
+  border-radius: 12px;
+  background: #fbfdfd;
+}
+
+.visit-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.visit-item-main h3 {
+  margin: 0 0 7px;
+  color: #293e50;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.visit-item-main p {
+  margin: 0;
+  color: #748294;
+  font-size: 14px;
+}
+
+.visit-status {
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #f0f2f4;
+  color: #526579;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.visit-status.status-waiting {
+  background: #fff4df;
+  color: #a66a0b;
+}
+
+.visit-item-meta {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #edf1f2;
+  color: #748294;
+  font-size: 14px;
+}
+
+.visit-item-meta strong {
+  color: #34495e;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.details-empty-state,
+.patient-details-message {
+  padding: 38px 24px;
+  border: 1px dashed #d9e3e6;
+  border-radius: 12px;
+  background: #fbfdfd;
+  color: #718096;
+  font-size: 15px;
+  text-align: center;
+}
+
+.patient-details-message {
+  margin-top: 60px;
+}
+
+.patient-details-message h2 {
+  margin: 0 0 10px;
+  color: #293e50;
+  font-size: 22px;
+}
+
+.patient-details-message p {
+  margin: 0 0 20px;
+  font-size: 15px;
+}
+
+.error-message {
+  border-color: #f0d5d5;
+  background: #fffafa;
+}
+
+/* Triage assessment form */
+
+.triage-section-description {
+  margin: 9px 0 0;
+  color: #748294;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.triage-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.triage-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.triage-form-group label {
+  color: #34495e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.triage-form-group input,
+.triage-form-group select,
+.triage-form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 15px;
+  border: 1px solid #dce5e8;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #293e50;
+  font-family: inherit;
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.triage-form-group input:focus,
+.triage-form-group select:focus,
+.triage-form-group textarea:focus {
+  border-color: #168184;
+  box-shadow: 0 0 0 3px rgba(22, 129, 132, 0.1);
+}
+
+.triage-form-group textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.triage-form-group input::placeholder,
+.triage-form-group textarea::placeholder {
+  color: #9aa6b2;
+}
+
+.triage-subheading {
+  padding-top: 8px;
+  border-top: 1px solid #edf1f2;
+}
+
+.triage-subheading h3 {
+  margin: 15px 0 6px;
+  color: #1d3445;
+  font-size: 19px;
+}
+
+.triage-subheading p {
+  margin: 0;
+  color: #748294;
+  font-size: 14px;
+}
+
+.triage-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+
+.triage-submit-button {
+  align-self: flex-start;
+  min-width: 190px;
+  padding: 13px 22px;
+  border: none;
+  border-radius: 9px;
+  background: #167c80;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.triage-submit-button:hover:not(:disabled) {
+  background: #11696d;
+  transform: translateY(-1px);
+}
+
+.triage-submit-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.triage-feedback {
+  padding: 13px 16px;
+  border-radius: 9px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.triage-feedback.success {
+  border: 1px solid #c9e9d7;
+  background: #f0faf4;
+  color: #237346;
+}
+
+.triage-feedback.error {
+  border: 1px solid #f0d5d5;
+  background: #fff7f7;
+  color: #a33b3b;
+}
+
+/* Assessment history */
+
+.assessment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.assessment-item {
+  padding: 22px;
+  border: 1px solid #e5ecee;
+  border-radius: 12px;
+  background: #fbfdfd;
+}
+
+.assessment-item-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.assessment-item-heading h3 {
+  margin: 0 0 7px;
+  color: #293e50;
+  font-size: 17px;
+}
+
+.assessment-item-heading p {
+  margin: 0;
+  color: #748294;
+  font-size: 14px;
+}
+
+.priority-badge {
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.priority-critical {
+  background: #fde8e8;
+  color: #b42318;
+}
+
+.priority-high {
+  background: #fff0e5;
+  color: #b54708;
+}
+
+.priority-medium {
+  background: #fff5d9;
+  color: #946200;
+}
+
+.priority-low {
+  background: #e8f5ed;
+  color: #237346;
+}
+
+.assessment-description {
+  margin: 18px 0 0;
+  color: #617184;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.assessment-description strong {
+  color: #34495e;
+}
+
+.assessment-vitals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px 20px;
+  margin-top: 18px;
+  padding: 17px;
+  border-radius: 9px;
+  background: #f0f6f6;
+}
+
+.assessment-vitals span {
+  color: #687789;
+  font-size: 14px;
+}
+
+.assessment-vitals strong {
+  color: #293e50;
+  font-weight: 600;
+}
+
+.assessment-assessor {
+  margin: 18px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid #e8eef0;
+  color: #748294;
+  font-size: 14px;
+}
+
+/* Responsive layout */
+
+@media (max-width: 800px) {
+  .details-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .patient-details-header h1 {
+    font-size: 29px;
+  }
+}
+
+@media (max-width: 560px) {
+  .patient-details-page {
+    width: calc(100% - 32px);
+    padding-top: 24px;
+  }
+
+  .details-card {
+    padding: 22px 18px;
+  }
+
+  .details-info-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .details-section-heading {
+    align-items: flex-start;
+  }
+
+  .visit-item-main {
+    flex-direction: column;
+  }
+
+  .triage-vitals-grid,
+  .assessment-vitals {
+    grid-template-columns: 1fr;
+  }
+
+  .assessment-item-heading {
+    flex-direction: column;
+  }
+}

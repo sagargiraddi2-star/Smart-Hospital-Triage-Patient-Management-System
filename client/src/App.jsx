@@ -3,6 +3,11 @@ import { Link, Routes, Route } from 'react-router-dom';
 import './App.css';
 import Login from './Login.jsx';
 import Register from './Register.jsx';
+import Dashboard from './Dashboard.jsx';
+import Patients from './Patients.jsx';
+import PatientDetails from './PatientDetails.jsx';
+import Queues from './Queues';
+import CompletedVisits from './CompletedVisits.jsx';
 
 const features = [
   {
@@ -275,26 +280,6 @@ function Welcome() {
   );
 }
 
-function RegisterPlaceholder() {
-  return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <div className="auth-heading">
-          <span className="auth-eyebrow">STAFF PORTAL</span>
-          <h1>Staff registration</h1>
-          <p>We'll build the staff registration form next.</p>
-        </div>
-        <p className="auth-switch">
-          Already registered? <Link to="/login">Sign in</Link>
-        </p>
-        <p className="auth-switch">
-          <Link to="/">← Back to home</Link>
-        </p>
-      </section>
-    </main>
-  );
-}
-
 function NotFound() {
   return (
     <main className="auth-page">
@@ -317,6 +302,12 @@ function App() {
       <Route path="/" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/patients" element={<Patients />} />
+      <Route path="/patients/:id" element={<PatientDetails />} />
+      <Route path="/queues" element={<Queues />} />
+      <Route path="/queues/emergency" element={<Queues />} />
+      <Route path="/visit-history" element={<CompletedVisits />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
