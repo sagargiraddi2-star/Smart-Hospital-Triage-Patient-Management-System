@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Queues.css';
 import './Departments.css';
+import { useAuth } from './authContext.js';
 
 const API_URL = 'http://localhost:5000/api/departments';
 
@@ -39,6 +40,9 @@ async function requestDepartments() {
 
 function Departments() {
   const navigate = useNavigate();
+  const auth = useAuth();
+  // Adding, renaming and (de)activating departments: management and admin.
+  const canManage = auth.can('departments.manage');
 
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +217,7 @@ function Departments() {
         </div>
       </section>
 
+      {canManage && (
       <section className="queue-filter-section">
         <div className="queue-filter-heading">
           <h2>Add a department</h2>
@@ -239,6 +244,7 @@ function Departments() {
           </button>
         </form>
       </section>
+      )}
 
       <section className="queue-table-section">
         <div className="queue-section-header">
@@ -276,7 +282,7 @@ function Departments() {
                   <th>In Consultation</th>
                   <th>Total Active</th>
                   <th>All-time Visits</th>
-                  <th>Actions</th>
+                  {canManage && <th>Actions</th>}
                 </tr>
               </thead>
 
@@ -324,6 +330,7 @@ function Departments() {
                     <td className="queue-waiting-time">{department.total_active}</td>
                     <td>{department.total_visits}</td>
 
+                    {canManage && (
                     <td>
                       <div className="department-actions">
                         {editingId === department.id ? (
@@ -369,6 +376,7 @@ function Departments() {
                         )}
                       </div>
                     </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

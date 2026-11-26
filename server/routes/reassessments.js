@@ -1,4 +1,5 @@
 const express = require('express');
+const { requirePermission, restrictPriority } = require('../lib/auth');
 const {
   isActiveAlert,
   loadReassessmentStatus,
@@ -7,18 +8,6 @@ const {
 } = require('../lib/reassessment');
 
 const router = express.Router();
-
-// Check whether a staff member is logged in.
-// Role-based restrictions are planned for Phase 7.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to access reassessments.',
-    });
-  }
-
-  next();
-}
 
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 const MAX_MINUTES = 7 * 24 * 60; // sanity limit only, not a clinical value
@@ -132,7 +121,7 @@ async function lockActiveAlert(client, visitId) {
 // active:  due soon, due and overdue alerts that are not snoozed.
 // snoozed: alerts hidden by "Remind later" until their reminder time.
 // all:     every waiting patient with their reassessment status.
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requirePermission('reassessments.view'), async (req, res) => {
   const pool = req.app.locals.pool;
   const view = req.query.view || 'active';
 
@@ -158,7 +147,7 @@ router.get('/', requireAuth, async (req, res) => {
       configured: settings.some((setting) => setting.is_enabled),
       settings,
       counts: summarise(rows),
-      patients,
+      patients: restrictPriority(req, patients, ['current_priority']),
     });
   } catch (error) {
     return sendError(res, error, 'Could not load reassessments:');
@@ -166,7 +155,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // GET /api/reassessments/settings
-router.get('/settings', requireAuth, async (req, res) => {
+router.get('/settings', requirePermission('reassessments.settings.view'), async (req, res) => {
   try {
     return res.json({ settings: await loadSettings(req.app.locals.pool) });
   } catch (error) {
@@ -178,7 +167,7 @@ router.get('/settings', requireAuth, async (req, res) => {
 // Body: { intervalMinutes, dueSoonMinutes, graceMinutes, isEnabled, approvalNote }
 // Enabling a priority requires an interval and an approval note recording
 // the clinical approval. Every change is stored in reassessment_setting_changes.
-router.put('/settings/:priority', requireAuth, async (req, res) => {
+router.put('/settings/:priority', requirePermission('reassessments.settings.edit'), async (req, res) => {
   const pool = req.app.locals.pool;
   const { priority } = req.params;
   const body = req.body || {};
@@ -257,7 +246,7 @@ router.put('/settings/:priority', requireAuth, async (req, res) => {
 // Body: { reason? }
 // Records that staff reviewed the patient and decided reassessment is not
 // currently needed. This restarts the reassessment clock from now.
-router.post('/:visitId/not-required', requireAuth, async (req, res) => {
+router.post('/:visitId/not-required', requirePermission('reassessments.decide'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseVisitId(req.params.visitId);
 
@@ -296,7 +285,7 @@ router.post('/:visitId/not-required', requireAuth, async (req, res) => {
 // Body: { until: ISO timestamp, reason? }
 // "Remind later": hides the alert until the chosen time. Allowed once per
 // due cycle and for at most one configured interval from now.
-router.post('/:visitId/defer', requireAuth, async (req, res) => {
+router.post('/:visitId/defer', requirePermission('reassessments.decide'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseVisitId(req.params.visitId);
 
@@ -368,7 +357,7 @@ router.post('/:visitId/defer', requireAuth, async (req, res) => {
 
 // GET /api/reassessments/:visitId/history
 // Decisions recorded for a visit, newest first.
-router.get('/:visitId/history', requireAuth, async (req, res) => {
+router.get('/:visitId/history', requirePermission('clinical.view'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseVisitId(req.params.visitId);
 

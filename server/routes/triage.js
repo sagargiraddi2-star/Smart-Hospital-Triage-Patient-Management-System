@@ -1,18 +1,8 @@
 
 const express = require('express');
+const { requirePermission } = require('../lib/auth');
 
 const router = express.Router();
-
-// Check whether a staff member is logged in.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to access triage assessments.',
-    });
-  }
-
-  next();
-}
 
 // Validate optional numeric observations.
 function isValidOptionalNumber(value, min, max) {
@@ -27,7 +17,7 @@ function isValidOptionalNumber(value, min, max) {
 
 // POST /api/triage
 // Save a new triage assessment.
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requirePermission('clinical.assess'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   try {
@@ -374,7 +364,7 @@ async function saveAssessment(client, { visitId, userId, aiDecision, values }) {
 
 // GET /api/triage/:visitId
 // Retrieve assessment history for a patient visit.
-router.get('/:visitId', requireAuth, async (req, res) => {
+router.get('/:visitId', requirePermission('clinical.view'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   try {

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
+import { ROLE_LABELS, useAuth } from './authContext.js';
 
 const SUMMARY_REFRESH_MS = 60 * 1000;
 
@@ -95,34 +96,9 @@ function getBrowserTimezone() {
 function Dashboard() {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const response = await fetch(
-          'http://localhost:5000/api/auth/me',
-          { credentials: 'include' }
-        );
-
-        if (!response.ok) {
-          navigate('/login', { replace: true });
-          return;
-        }
-
-        const data = await response.json();
-        setUser(data.user);
-      } catch (error) {
-        console.error('Could not load user:', error);
-        navigate('/login', { replace: true });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadUser();
-  }, [navigate]);
+  // Signed-in user from the shared auth state (RequireAuth guarantees one).
+  const auth = useAuth();
+  const user = auth.user;
 
   const [summary, setSummary] = useState(null);
   const [summaryError, setSummaryError] = useState('');
@@ -187,15 +163,12 @@ function Dashboard() {
         throw new Error('Could not sign out. Please try again.');
       }
 
+      auth.signOut();
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout failed:', error);
       alert(error.message || 'Something went wrong while signing out.');
     }
-  }
-
-  if (isLoading) {
-    return <div style={{ padding: '40px', fontSize: '14px' }}>Loading your dashboard...</div>;
   }
 
   if (!user) {
@@ -219,7 +192,7 @@ function Dashboard() {
     .map((part) => part[0].toUpperCase())
     .join('');
 
-  const role = user.role || 'Staff';
+  const role = ROLE_LABELS[user.role] || user.role || 'Staff';
 
   const stats = summary?.stats;
   // Before the first successful load: "Loading…" or, after a failure,
@@ -268,35 +241,54 @@ function Dashboard() {
             <span>Overview</span>
           </Link>
 
-          <Link to="/patients" className="sidebar-link">
-            <span className="sidebar-icon">♙</span>
-            <span>Patients</span>
-          </Link>
+          {auth.can('patients.view') && (
+            <Link to="/patients" className="sidebar-link">
+              <span className="sidebar-icon">♙</span>
+              <span>Patients</span>
+            </Link>
+          )}
 
-          <Link to="/queues" className="sidebar-link">
-            <span className="sidebar-icon">☷</span>
-            <span>Normal Queue</span>
-          </Link>
+          {auth.can('queues.view') && (
+            <Link to="/queues" className="sidebar-link">
+              <span className="sidebar-icon">☷</span>
+              <span>Normal Queue</span>
+            </Link>
+          )}
 
-          <Link to="/queues/emergency" className="sidebar-link">
-            <span className="sidebar-icon">✚</span>
-            <span>Emergency Queue</span>
-          </Link>
+          {auth.can('queues.view') && (
+            <Link to="/queues/emergency" className="sidebar-link">
+              <span className="sidebar-icon">✚</span>
+              <span>Emergency Queue</span>
+            </Link>
+          )}
 
-          <Link to="/visit-history" className="sidebar-link">
-            <span className="sidebar-icon">◷</span>
-            <span>Visit History</span>
-          </Link>
+          {auth.can('queues.view') && (
+            <Link to="/visit-history" className="sidebar-link">
+              <span className="sidebar-icon">◷</span>
+              <span>Visit History</span>
+            </Link>
+          )}
 
-          <Link to="/departments" className="sidebar-link">
-            <span className="sidebar-icon">▤</span>
-            <span>Departments</span>
-          </Link>
+          {auth.can('departments.view') && (
+            <Link to="/departments" className="sidebar-link">
+              <span className="sidebar-icon">▤</span>
+              <span>Departments</span>
+            </Link>
+          )}
 
-          <Link to="/reassessments" className="sidebar-link">
-            <span className="sidebar-icon">♧</span>
-            <span>Reassessment alerts</span>
-          </Link>
+          {auth.can('reassessments.view') && (
+            <Link to="/reassessments" className="sidebar-link">
+              <span className="sidebar-icon">♧</span>
+              <span>Reassessment alerts</span>
+            </Link>
+          )}
+
+          {auth.can('users.manage') && (
+            <Link to="/users" className="sidebar-link">
+              <span className="sidebar-icon">⚙</span>
+              <span>User management</span>
+            </Link>
+          )}
 
         </nav>
 
@@ -537,11 +529,13 @@ function Dashboard() {
                     </div>
 
                     <div className="dashboard-activity-badges">
-                      <span
-                        className={`queue-priority priority-${visit.triage_priority || 'unassigned'}`}
-                      >
-                        {formatPriority(visit.triage_priority)}
-                      </span>
+                      {!visit.priority_restricted && (
+                        <span
+                          className={`queue-priority priority-${visit.triage_priority || 'unassigned'}`}
+                        >
+                          {formatPriority(visit.triage_priority)}
+                        </span>
+                      )}
                       <span className={`dashboard-status status-${visit.status}`}>
                         {STATUS_LABELS[visit.status] || visit.status}
                       </span>
@@ -727,7 +721,9 @@ function Dashboard() {
                   <p>
                     {alert.department || 'No department'} ·{' '}
                     {alert.visit_type === 'emergency' ? 'Emergency' : 'Normal'} ·{' '}
-                    {formatPriority(alert.current_priority)} priority · due{' '}
+                    {!alert.priority_restricted &&
+                      `${formatPriority(alert.current_priority)} priority · `}
+                    due{' '}
                     {formatActivityTime(alert.due_at)}
                   </p>
                 </div>

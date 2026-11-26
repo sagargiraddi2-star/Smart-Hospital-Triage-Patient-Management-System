@@ -1,4 +1,5 @@
 const express = require('express');
+const { requirePermission, restrictPriority } = require('../lib/auth');
 const {
   isActiveAlert,
   loadReassessmentStatus,
@@ -7,17 +8,6 @@ const {
 } = require('../lib/reassessment');
 
 const router = express.Router();
-
-// Check whether a staff member is logged in.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to access the dashboard.',
-    });
-  }
-
-  next();
-}
 
 const RECENT_ACTIVITY_LIMIT = 6;
 
@@ -42,7 +32,7 @@ function resolveTimezone(value) {
 // GET /api/dashboard/summary?timezone=Asia/Kolkata
 // Real-time hospital overview built from patient_visits,
 // patients and triage_assessments.
-router.get('/summary', requireAuth, async (req, res) => {
+router.get('/summary', requirePermission('dashboard.view'), async (req, res) => {
   const pool = req.app.locals.pool;
   const timezone = resolveTimezone(req.query.timezone);
 
@@ -235,15 +225,19 @@ router.get('/summary', requireAuth, async (req, res) => {
         departmentsWithPatients: stats.departments_with_patients,
         awaitingTriage: stats.awaiting_triage,
       },
-      recentActivity: activityResult.rows,
+      recentActivity: restrictPriority(req, activityResult.rows, ['triage_priority']),
       departmentWorkload: workloadResult.rows,
       reassessment: {
         configured: reassessmentSettings.some((setting) => setting.is_enabled),
         counts: summarise(reassessmentRows),
         // Most urgent active (not snoozed) alerts for the dashboard panel.
-        alerts: reassessmentRows
-          .filter((row) => isActiveAlert(row) && !row.is_snoozed)
-          .slice(0, 5),
+        alerts: restrictPriority(
+          req,
+          reassessmentRows
+            .filter((row) => isActiveAlert(row) && !row.is_snoozed)
+            .slice(0, 5),
+          ['current_priority']
+        ),
       },
     });
   } catch (error) {

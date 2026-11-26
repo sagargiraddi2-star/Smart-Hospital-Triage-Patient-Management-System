@@ -30,6 +30,25 @@ app.use(
   })
 );
 
+// Basic security headers (Phase 7), without extra packages.
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  });
+
+  // API responses contain patient data: never store them in caches.
+  if (req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'no-store');
+  }
+
+  next();
+});
+
 app.use(express.json());
 
 // Store login sessions in PostgreSQL.
@@ -87,6 +106,9 @@ app.use('/api/reassessments', require('./routes/reassessments'));
 
 // Simulated AI triage demonstration (local only, no external AI).
 app.use('/api/ai-triage', require('./routes/aiTriage'));
+
+// User management (administrators only).
+app.use('/api/users', require('./routes/users'));
 
 // Unknown API routes return JSON instead of Express's default HTML page,
 // so the frontend never tries to parse an HTML error as JSON.

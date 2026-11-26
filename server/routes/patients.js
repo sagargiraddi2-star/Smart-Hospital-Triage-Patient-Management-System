@@ -1,22 +1,12 @@
 
 const express = require('express');
+const { requirePermission, restrictPriority } = require('../lib/auth');
 
 const router = express.Router();
 
-// Check whether a staff member is logged in.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to access patient records.',
-    });
-  }
-
-  next();
-}
-
 // GET /api/patients
 // Retrieve patient records along with each patient's latest visit.
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requirePermission('patients.view'), async (req, res) => {
   try {
     const pool = req.app.locals.pool;
 
@@ -65,10 +55,15 @@ router.get('/', requireAuth, async (req, res) => {
 
 // GET /api/patients/:id
 // Retrieve one patient's details and visit history.
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requirePermission('patients.view'), async (req, res) => {
   try {
     const pool = req.app.locals.pool;
-    const patientId = req.params.id;
+    const patientId = Number(req.params.id);
+
+    // Phase 7: reject malformed IDs with 400 instead of a database error.
+    if (!Number.isInteger(patientId) || patientId <= 0) {
+      return res.status(400).json({ message: 'Invalid patient ID.' });
+    }
 
     const patientResult = await pool.query(
       `
@@ -116,7 +111,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     res.json({
       patient: patientResult.rows[0],
-      visits: visitsResult.rows,
+      visits: restrictPriority(req, visitsResult.rows, ['priority_at_consultation']),
     });
   } catch (error) {
     console.error('Could not retrieve patient details:', error.message);
@@ -129,7 +124,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 // POST /api/patients
 // Register a patient and create their first hospital visit.
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requirePermission('patients.register'), async (req, res) => {
   let client;
   let transactionStarted = false;
 

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import './PatientDetails.css';
+import { useAuth } from './authContext.js';
 import SimulatedAiPanel from './SimulatedAiPanel.jsx';
 import {
   EMPTY_AI_STATE,
@@ -61,6 +62,10 @@ const initialForm = {
 
 function PatientDetails() {
   const { id } = useParams();
+  const auth = useAuth();
+  // Clinical information (assessments, AI suggestions, reassessment
+  // decisions) is only requested and shown for roles allowed to see it.
+  const canViewClinical = auth.can('clinical.view');
 
   // Opened from a reassessment alert: ?visit=<visitId>&reassess=1
   const [searchParams] = useSearchParams();
@@ -158,6 +163,13 @@ function PatientDetails() {
         return;
       }
 
+      if (!canViewClinical) {
+        setAssessments([]);
+        setDecisions([]);
+        setAiLog([]);
+        return;
+      }
+
       try {
         setIsLoadingAssessments(true);
         setAssessmentError('');
@@ -222,7 +234,7 @@ function PatientDetails() {
     }
 
     loadAssessments();
-  }, [selectedVisitId, assessmentRefresh]);
+  }, [selectedVisitId, assessmentRefresh, canViewClinical]);
 
   function handleInputChange(event) {
     const { name, value } = event.target;
@@ -496,533 +508,545 @@ function PatientDetails() {
         )}
       </section>
 
-      {/* Triage assessment form */}
-      <section className="details-card" id="assessment-form-section">
-        <div className="details-section-heading">
-          <div>
-            <span className="details-section-label">CLINICAL WORKSPACE</span>
-            <h2>{isReassessment ? 'Reassessment' : 'New triage assessment'}</h2>
-            <p className="triage-section-description">
-              {isReassessment
-                ? 'This visit already has an assessment. Saving records a reassessment and restarts the reassessment clock.'
-                : 'Record observations for a specific patient visit.'}
-            </p>
-          </div>
-        </div>
-
-        {isReassessment && currentPriority && (
-          <div className="triage-feedback reassessment-banner">
-            Current priority: <strong>{currentPriority}</strong>. The priority
-            field below is intentionally blank: select the priority that
-            reflects this reassessment. Reassessment never changes the
-            priority automatically.
-          </div>
-        )}
-
-        {visits.length === 0 ? (
-          <div className="details-empty-state">
-            This patient has no visits yet. A visit must exist before an
-            assessment can be recorded.
-          </div>
-        ) : (
-          <form
-            className="triage-form"
-            onSubmit={handleAssessmentSubmit}
-          >
-            <div className="triage-form-group">
-              <label htmlFor="selectedVisit">Select patient visit</label>
-
-              <select
-                id="selectedVisit"
-                value={selectedVisitId}
-                onChange={(event) => {
-                  setSelectedVisitId(event.target.value);
-                  setSaveMessage('');
-                  setSaveError('');
-                  setAi(EMPTY_AI_STATE);
-                }}
-                required
-              >
-                {visits.map((visit) => (
-                  <option key={visit.id} value={visit.id}>
-                    {visit.department} — {formatDateTime(visit.created_at)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="triage-form-group">
-              <label htmlFor="chiefComplaint">Chief complaint *</label>
-
-              <input
-                id="chiefComplaint"
-                name="chiefComplaint"
-                type="text"
-                value={form.chiefComplaint}
-                onChange={handleInputChange}
-                placeholder="Enter the patient's main complaint"
-                required
-              />
-            </div>
-
-            <div className="triage-form-group">
-              <label htmlFor="symptoms">Symptoms</label>
-
-              <textarea
-                id="symptoms"
-                name="symptoms"
-                value={form.symptoms}
-                onChange={handleInputChange}
-                placeholder="Describe the reported symptoms"
-                rows="3"
-              />
-            </div>
-
-            <div className="triage-subheading">
-              <h3>Vital signs</h3>
-              <p>Enter the observations recorded by clinical staff.</p>
-            </div>
-
-            <div className="triage-vitals-grid">
-              <div className="triage-form-group">
-                <label htmlFor="temperatureC">Temperature (°C)</label>
-                <input
-                  id="temperatureC"
-                  name="temperatureC"
-                  type="number"
-                  min="25"
-                  max="45"
-                  step="0.1"
-                  value={form.temperatureC}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 37.0"
-                />
-              </div>
-
-              <div className="triage-form-group">
-                <label htmlFor="heartRateBpm">Heart rate (bpm)</label>
-                <input
-                  id="heartRateBpm"
-                  name="heartRateBpm"
-                  type="number"
-                  min="1"
-                  max="300"
-                  value={form.heartRateBpm}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 80"
-                />
-              </div>
-
-              <div className="triage-form-group">
-                <label htmlFor="systolicBp">Systolic BP (mmHg)</label>
-                <input
-                  id="systolicBp"
-                  name="systolicBp"
-                  type="number"
-                  min="1"
-                  max="300"
-                  value={form.systolicBp}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 120"
-                />
-              </div>
-
-              <div className="triage-form-group">
-                <label htmlFor="diastolicBp">Diastolic BP (mmHg)</label>
-                <input
-                  id="diastolicBp"
-                  name="diastolicBp"
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={form.diastolicBp}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 80"
-                />
-              </div>
-
-              <div className="triage-form-group">
-                <label htmlFor="respiratoryRate">
-                  Respiratory rate (/min)
-                </label>
-                <input
-                  id="respiratoryRate"
-                  name="respiratoryRate"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={form.respiratoryRate}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 16"
-                />
-              </div>
-
-              <div className="triage-form-group">
-                <label htmlFor="oxygenSaturation">
-                  Oxygen saturation (%)
-                </label>
-                <input
-                  id="oxygenSaturation"
-                  name="oxygenSaturation"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.oxygenSaturation}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 98"
-                />
+      {canViewClinical ? (
+        <>
+          {/* Triage assessment form */}
+          <section className="details-card" id="assessment-form-section">
+            <div className="details-section-heading">
+              <div>
+                <span className="details-section-label">CLINICAL WORKSPACE</span>
+                <h2>{isReassessment ? 'Reassessment' : 'New triage assessment'}</h2>
+                <p className="triage-section-description">
+                  {isReassessment
+                    ? 'This visit already has an assessment. Saving records a reassessment and restarts the reassessment clock.'
+                    : 'Record observations for a specific patient visit.'}
+                </p>
               </div>
             </div>
 
-            <SimulatedAiPanel
-              key={`${id}-${selectedVisitId}`}
-              visitId={selectedVisitId ? Number(selectedVisitId) : null}
-              form={form}
-              ai={ai}
-              onAiChange={setAi}
-              onPriorityChange={(priority) =>
-                setForm((previousForm) => ({
-                  ...previousForm,
-                  triagePriority: priority,
-                }))
-              }
-              onRecorded={() => setAssessmentRefresh((previous) => previous + 1)}
-            />
-
-            <div className="triage-form-group">
-              <label htmlFor="triagePriority">
-                Staff-assigned triage priority *
-              </label>
-
-              <select
-                id="triagePriority"
-                name="triagePriority"
-                value={form.triagePriority}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select priority</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-
-            <div className="triage-form-group">
-              <label htmlFor="clinicalNotes">Clinical notes</label>
-
-              <textarea
-                id="clinicalNotes"
-                name="clinicalNotes"
-                value={form.clinicalNotes}
-                onChange={handleInputChange}
-                placeholder="Additional observations or notes"
-                rows="4"
-              />
-            </div>
-
-            {saveMessage && (
-              <div className="triage-feedback success">
-                {saveMessage}
+            {isReassessment && currentPriority && (
+              <div className="triage-feedback reassessment-banner">
+                Current priority: <strong>{currentPriority}</strong>. The priority
+                field below is intentionally blank: select the priority that
+                reflects this reassessment. Reassessment never changes the
+                priority automatically.
               </div>
             )}
 
-            {saveError && (
-              <div className="triage-feedback error">
-                {saveError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="triage-submit-button"
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving assessment...' : 'Save assessment'}
-            </button>
-          </form>
-        )}
-      </section>
-
-      {/* Assessment history */}
-      <section className="details-card">
-        <div className="details-section-heading">
-          <div>
-            <span className="details-section-label">CLINICAL RECORDS</span>
-            <h2>Assessment history</h2>
-            <p className="triage-section-description">
-              Previous assessments for the selected visit.
-            </p>
-          </div>
-
-          <span className="visit-count">
-            {assessments.length}{' '}
-            {assessments.length === 1 ? 'assessment' : 'assessments'}
-          </span>
-        </div>
-
-        {visits.length > 0 && (
-          <>
-            {isLoadingAssessments ? (
+            {visits.length === 0 ? (
               <div className="details-empty-state">
-                Loading assessment history...
-              </div>
-            ) : assessmentError ? (
-              <div className="triage-feedback error">
-                {assessmentError}
-              </div>
-            ) : assessments.length === 0 ? (
-              <div className="details-empty-state">
-                No assessments have been recorded for this visit yet.
+                This patient has no visits yet. A visit must exist before an
+                assessment can be recorded.
               </div>
             ) : (
-              <div className="assessment-list">
-                {assessments.map((assessment) =>
-                  assessment.entry_type === 'priority_update' ? (
-                  <article
-                    className="assessment-item"
-                    key={assessment.id}
-                  >
-                    <div className="assessment-item-heading">
-                      <div>
-                        <h3>Priority changed from queue</h3>
-                        <p>{formatDateTime(assessment.created_at)}</p>
-                      </div>
+              <form
+                className="triage-form"
+                onSubmit={handleAssessmentSubmit}
+              >
+                <div className="triage-form-group">
+                  <label htmlFor="selectedVisit">Select patient visit</label>
 
-                      <span
-                        className={`priority-badge priority-${assessment.triage_priority}`}
+                  <select
+                    id="selectedVisit"
+                    value={selectedVisitId}
+                    onChange={(event) => {
+                      setSelectedVisitId(event.target.value);
+                      setSaveMessage('');
+                      setSaveError('');
+                      setAi(EMPTY_AI_STATE);
+                    }}
+                    required
+                  >
+                    {visits.map((visit) => (
+                      <option key={visit.id} value={visit.id}>
+                        {visit.department} — {formatDateTime(visit.created_at)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="triage-form-group">
+                  <label htmlFor="chiefComplaint">Chief complaint *</label>
+
+                  <input
+                    id="chiefComplaint"
+                    name="chiefComplaint"
+                    type="text"
+                    value={form.chiefComplaint}
+                    onChange={handleInputChange}
+                    placeholder="Enter the patient's main complaint"
+                    required
+                  />
+                </div>
+
+                <div className="triage-form-group">
+                  <label htmlFor="symptoms">Symptoms</label>
+
+                  <textarea
+                    id="symptoms"
+                    name="symptoms"
+                    value={form.symptoms}
+                    onChange={handleInputChange}
+                    placeholder="Describe the reported symptoms"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="triage-subheading">
+                  <h3>Vital signs</h3>
+                  <p>Enter the observations recorded by clinical staff.</p>
+                </div>
+
+                <div className="triage-vitals-grid">
+                  <div className="triage-form-group">
+                    <label htmlFor="temperatureC">Temperature (°C)</label>
+                    <input
+                      id="temperatureC"
+                      name="temperatureC"
+                      type="number"
+                      min="25"
+                      max="45"
+                      step="0.1"
+                      value={form.temperatureC}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 37.0"
+                    />
+                  </div>
+
+                  <div className="triage-form-group">
+                    <label htmlFor="heartRateBpm">Heart rate (bpm)</label>
+                    <input
+                      id="heartRateBpm"
+                      name="heartRateBpm"
+                      type="number"
+                      min="1"
+                      max="300"
+                      value={form.heartRateBpm}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 80"
+                    />
+                  </div>
+
+                  <div className="triage-form-group">
+                    <label htmlFor="systolicBp">Systolic BP (mmHg)</label>
+                    <input
+                      id="systolicBp"
+                      name="systolicBp"
+                      type="number"
+                      min="1"
+                      max="300"
+                      value={form.systolicBp}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 120"
+                    />
+                  </div>
+
+                  <div className="triage-form-group">
+                    <label htmlFor="diastolicBp">Diastolic BP (mmHg)</label>
+                    <input
+                      id="diastolicBp"
+                      name="diastolicBp"
+                      type="number"
+                      min="1"
+                      max="200"
+                      value={form.diastolicBp}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 80"
+                    />
+                  </div>
+
+                  <div className="triage-form-group">
+                    <label htmlFor="respiratoryRate">
+                      Respiratory rate (/min)
+                    </label>
+                    <input
+                      id="respiratoryRate"
+                      name="respiratoryRate"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={form.respiratoryRate}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 16"
+                    />
+                  </div>
+
+                  <div className="triage-form-group">
+                    <label htmlFor="oxygenSaturation">
+                      Oxygen saturation (%)
+                    </label>
+                    <input
+                      id="oxygenSaturation"
+                      name="oxygenSaturation"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={form.oxygenSaturation}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 98"
+                    />
+                  </div>
+                </div>
+
+                <SimulatedAiPanel
+                  key={`${id}-${selectedVisitId}`}
+                  visitId={selectedVisitId ? Number(selectedVisitId) : null}
+                  form={form}
+                  ai={ai}
+                  onAiChange={setAi}
+                  onPriorityChange={(priority) =>
+                    setForm((previousForm) => ({
+                      ...previousForm,
+                      triagePriority: priority,
+                    }))
+                  }
+                  onRecorded={() => setAssessmentRefresh((previous) => previous + 1)}
+                />
+
+                <div className="triage-form-group">
+                  <label htmlFor="triagePriority">
+                    Staff-assigned triage priority *
+                  </label>
+
+                  <select
+                    id="triagePriority"
+                    name="triagePriority"
+                    value={form.triagePriority}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select priority</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
+                <div className="triage-form-group">
+                  <label htmlFor="clinicalNotes">Clinical notes</label>
+
+                  <textarea
+                    id="clinicalNotes"
+                    name="clinicalNotes"
+                    value={form.clinicalNotes}
+                    onChange={handleInputChange}
+                    placeholder="Additional observations or notes"
+                    rows="4"
+                  />
+                </div>
+
+                {saveMessage && (
+                  <div className="triage-feedback success">
+                    {saveMessage}
+                  </div>
+                )}
+
+                {saveError && (
+                  <div className="triage-feedback error">
+                    {saveError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="triage-submit-button"
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving assessment...' : 'Save assessment'}
+                </button>
+              </form>
+            )}
+          </section>
+
+          {/* Assessment history */}
+          <section className="details-card">
+            <div className="details-section-heading">
+              <div>
+                <span className="details-section-label">CLINICAL RECORDS</span>
+                <h2>Assessment history</h2>
+                <p className="triage-section-description">
+                  Previous assessments for the selected visit.
+                </p>
+              </div>
+
+              <span className="visit-count">
+                {assessments.length}{' '}
+                {assessments.length === 1 ? 'assessment' : 'assessments'}
+              </span>
+            </div>
+
+            {visits.length > 0 && (
+              <>
+                {isLoadingAssessments ? (
+                  <div className="details-empty-state">
+                    Loading assessment history...
+                  </div>
+                ) : assessmentError ? (
+                  <div className="triage-feedback error">
+                    {assessmentError}
+                  </div>
+                ) : assessments.length === 0 ? (
+                  <div className="details-empty-state">
+                    No assessments have been recorded for this visit yet.
+                  </div>
+                ) : (
+                  <div className="assessment-list">
+                    {assessments.map((assessment) =>
+                      assessment.entry_type === 'priority_update' ? (
+                      <article
+                        className="assessment-item"
+                        key={assessment.id}
                       >
-                        {assessment.triage_priority}
-                      </span>
-                    </div>
+                        <div className="assessment-item-heading">
+                          <div>
+                            <h3>Priority changed from queue</h3>
+                            <p>{formatDateTime(assessment.created_at)}</p>
+                          </div>
 
-                    <p className="assessment-description">
-                      <strong>Change:</strong>{' '}
-                      {assessment.previous_priority || 'unknown'} →{' '}
-                      {assessment.triage_priority}. No new observations
-                      were recorded with this change.
-                    </p>
+                          <span
+                            className={`priority-badge priority-${assessment.triage_priority}`}
+                          >
+                            {assessment.triage_priority}
+                          </span>
+                        </div>
 
-                    <p className="assessment-assessor">
-                      Changed by: {assessment.assessed_by_name || 'Staff member'}
-                    </p>
-                  </article>
-                  ) : (
-                  <article
-                    className="assessment-item"
-                    key={assessment.id}
-                  >
-                    <div className="assessment-item-heading">
-                      <div>
-                        <span className="assessment-kind">
-                          {Number(assessment.assessment_number) === 1
-                            ? 'Initial assessment'
-                            : `Reassessment #${Number(assessment.assessment_number) - 1}`}
+                        <p className="assessment-description">
+                          <strong>Change:</strong>{' '}
+                          {assessment.previous_priority || 'unknown'} →{' '}
+                          {assessment.triage_priority}. No new observations
+                          were recorded with this change.
+                        </p>
+
+                        <p className="assessment-assessor">
+                          Changed by: {assessment.assessed_by_name || 'Staff member'}
+                        </p>
+                      </article>
+                      ) : (
+                      <article
+                        className="assessment-item"
+                        key={assessment.id}
+                      >
+                        <div className="assessment-item-heading">
+                          <div>
+                            <span className="assessment-kind">
+                              {Number(assessment.assessment_number) === 1
+                                ? 'Initial assessment'
+                                : `Reassessment #${Number(assessment.assessment_number) - 1}`}
+                            </span>
+                            <h3>{assessment.chief_complaint}</h3>
+                            <p>{formatDateTime(assessment.created_at)}</p>
+                          </div>
+
+                          <span
+                            className={`priority-badge priority-${assessment.triage_priority}`}
+                          >
+                            {assessment.triage_priority}
+                          </span>
+                        </div>
+
+                        {assessment.symptoms && (
+                          <p className="assessment-description">
+                            <strong>Symptoms:</strong> {assessment.symptoms}
+                          </p>
+                        )}
+
+                        <div className="assessment-vitals">
+                          <span>
+                            Temperature: <strong>{assessment.temperature_c ?? '—'} °C</strong>
+                          </span>
+                          <span>
+                            Heart rate: <strong>{assessment.heart_rate_bpm ?? '—'} bpm</strong>
+                          </span>
+                          <span>
+                            Blood pressure: <strong>
+                              {assessment.systolic_bp ?? '—'}/
+                              {assessment.diastolic_bp ?? '—'} mmHg
+                            </strong>
+                          </span>
+                          <span>
+                            Respiratory rate: <strong>
+                              {assessment.respiratory_rate ?? '—'} /min
+                            </strong>
+                          </span>
+                          <span>
+                            Oxygen saturation: <strong>
+                              {assessment.oxygen_saturation ?? '—'}%
+                            </strong>
+                          </span>
+                        </div>
+
+                        {assessment.clinical_notes && (
+                          <p className="assessment-description">
+                            <strong>Clinical notes:</strong>{' '}
+                            {assessment.clinical_notes}
+                          </p>
+                        )}
+
+                        <p className="assessment-assessor">
+                          Assessed by: {assessment.assessed_by_name || 'Staff member'}
+                        </p>
+
+                        {aiLog
+                          .filter((item) => item.assessment_id === assessment.id)
+                          .map((item) => (
+                            <p className="assessment-ai-link" key={item.id}>
+                              <strong>Simulated AI suggestion (demonstration):</strong>{' '}
+                              {formatPriorityLabel(item.suggested_priority)} · Staff final:{' '}
+                              {formatPriorityLabel(item.final_priority)} ·{' '}
+                              {item.decision === 'accepted' ? 'Accepted' : 'Overridden'}
+                              {item.override_reason && ` · Reason: ${item.override_reason}`}
+                              {' '}· by {item.decided_by_name || 'Staff member'},{' '}
+                              {formatDateTime(item.decided_at)}
+                            </p>
+                          ))}
+                      </article>
+                      )
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
+          {/* Simulated AI suggestion log */}
+          {visits.length > 0 && (
+            <section className="details-card">
+              <div className="details-section-heading">
+                <div>
+                  <span className="details-section-label">SIMULATED AI DEMONSTRATION</span>
+                  <h2>Simulated AI suggestion log</h2>
+                  <p className="triage-section-description">
+                    Every simulated suggestion requested for the selected visit,
+                    including discarded and unused ones. Simulated demonstration
+                    output only — not genuine AI analysis.
+                  </p>
+                </div>
+
+                <span className="visit-count">
+                  {aiLog.length} {aiLog.length === 1 ? 'suggestion' : 'suggestions'}
+                </span>
+              </div>
+
+              {aiLog.length === 0 ? (
+                <div className="details-empty-state">
+                  No simulated suggestions have been requested for this visit.
+                </div>
+              ) : (
+                <div className="assessment-list">
+                  {aiLog.map((item) => (
+                    <article className="assessment-item" key={item.id}>
+                      <div className="assessment-item-heading">
+                        <div>
+                          <span className="assessment-kind">Simulated suggestion</span>
+                          <h3>
+                            {item.can_suggest
+                              ? `Suggested: ${formatPriorityLabel(item.suggested_priority)}`
+                              : 'No suggestion (insufficient information scenario)'}
+                          </h3>
+                          <p>
+                            Requested {formatDateTime(item.requested_at)} by{' '}
+                            {item.requested_by_name || 'Staff member'} · scenario{' '}
+                            {item.scenario_key}
+                          </p>
+                        </div>
+
+                        <span className={`ai-decision-badge ${item.decision || 'none'}`}>
+                          {item.decision === 'accepted'
+                            ? 'Accepted'
+                            : item.decision === 'overridden'
+                              ? 'Overridden'
+                              : item.decision === 'discarded'
+                                ? 'Discarded'
+                                : 'No decision recorded'}
                         </span>
-                        <h3>{assessment.chief_complaint}</h3>
-                        <p>{formatDateTime(assessment.created_at)}</p>
                       </div>
 
-                      <span
-                        className={`priority-badge priority-${assessment.triage_priority}`}
-                      >
-                        {assessment.triage_priority}
-                      </span>
-                    </div>
-
-                    {assessment.symptoms && (
-                      <p className="assessment-description">
-                        <strong>Symptoms:</strong> {assessment.symptoms}
-                      </p>
-                    )}
-
-                    <div className="assessment-vitals">
-                      <span>
-                        Temperature: <strong>{assessment.temperature_c ?? '—'} °C</strong>
-                      </span>
-                      <span>
-                        Heart rate: <strong>{assessment.heart_rate_bpm ?? '—'} bpm</strong>
-                      </span>
-                      <span>
-                        Blood pressure: <strong>
-                          {assessment.systolic_bp ?? '—'}/
-                          {assessment.diastolic_bp ?? '—'} mmHg
-                        </strong>
-                      </span>
-                      <span>
-                        Respiratory rate: <strong>
-                          {assessment.respiratory_rate ?? '—'} /min
-                        </strong>
-                      </span>
-                      <span>
-                        Oxygen saturation: <strong>
-                          {assessment.oxygen_saturation ?? '—'}%
-                        </strong>
-                      </span>
-                    </div>
-
-                    {assessment.clinical_notes && (
-                      <p className="assessment-description">
-                        <strong>Clinical notes:</strong>{' '}
-                        {assessment.clinical_notes}
-                      </p>
-                    )}
-
-                    <p className="assessment-assessor">
-                      Assessed by: {assessment.assessed_by_name || 'Staff member'}
-                    </p>
-
-                    {aiLog
-                      .filter((item) => item.assessment_id === assessment.id)
-                      .map((item) => (
-                        <p className="assessment-ai-link" key={item.id}>
-                          <strong>Simulated AI suggestion (demonstration):</strong>{' '}
-                          {formatPriorityLabel(item.suggested_priority)} · Staff final:{' '}
-                          {formatPriorityLabel(item.final_priority)} ·{' '}
-                          {item.decision === 'accepted' ? 'Accepted' : 'Overridden'}
+                      {item.decision && (
+                        <p className="assessment-assessor">
+                          {item.decision === 'discarded'
+                            ? 'Discarded'
+                            : `Staff final priority: ${formatPriorityLabel(item.final_priority)}`}
                           {item.override_reason && ` · Reason: ${item.override_reason}`}
                           {' '}· by {item.decided_by_name || 'Staff member'},{' '}
                           {formatDateTime(item.decided_at)}
+                          {item.assessment_id && ' · linked to a saved assessment'}
                         </p>
-                      ))}
-                  </article>
-                  )
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </section>
+                      )}
 
-      {/* Simulated AI suggestion log */}
-      {visits.length > 0 && (
-        <section className="details-card">
-          <div className="details-section-heading">
-            <div>
-              <span className="details-section-label">SIMULATED AI DEMONSTRATION</span>
-              <h2>Simulated AI suggestion log</h2>
-              <p className="triage-section-description">
-                Every simulated suggestion requested for the selected visit,
-                including discarded and unused ones. Simulated demonstration
-                output only — not genuine AI analysis.
-              </p>
-            </div>
-
-            <span className="visit-count">
-              {aiLog.length} {aiLog.length === 1 ? 'suggestion' : 'suggestions'}
-            </span>
-          </div>
-
-          {aiLog.length === 0 ? (
-            <div className="details-empty-state">
-              No simulated suggestions have been requested for this visit.
-            </div>
-          ) : (
-            <div className="assessment-list">
-              {aiLog.map((item) => (
-                <article className="assessment-item" key={item.id}>
-                  <div className="assessment-item-heading">
-                    <div>
-                      <span className="assessment-kind">Simulated suggestion</span>
-                      <h3>
-                        {item.can_suggest
-                          ? `Suggested: ${formatPriorityLabel(item.suggested_priority)}`
-                          : 'No suggestion (insufficient information scenario)'}
-                      </h3>
-                      <p>
-                        Requested {formatDateTime(item.requested_at)} by{' '}
-                        {item.requested_by_name || 'Staff member'} · scenario{' '}
-                        {item.scenario_key}
-                      </p>
-                    </div>
-
-                    <span className={`ai-decision-badge ${item.decision || 'none'}`}>
-                      {item.decision === 'accepted'
-                        ? 'Accepted'
-                        : item.decision === 'overridden'
-                          ? 'Overridden'
-                          : item.decision === 'discarded'
-                            ? 'Discarded'
-                            : 'No decision recorded'}
-                    </span>
-                  </div>
-
-                  {item.decision && (
-                    <p className="assessment-assessor">
-                      {item.decision === 'discarded'
-                        ? 'Discarded'
-                        : `Staff final priority: ${formatPriorityLabel(item.final_priority)}`}
-                      {item.override_reason && ` · Reason: ${item.override_reason}`}
-                      {' '}· by {item.decided_by_name || 'Staff member'},{' '}
-                      {formatDateTime(item.decided_at)}
-                      {item.assessment_id && ' · linked to a saved assessment'}
-                    </p>
-                  )}
-
-                  {!item.decision && (
-                    <p className="assessment-assessor">
-                      Not used: no assessment was saved with this suggestion.
-                    </p>
-                  )}
-                </article>
-              ))}
-            </div>
+                      {!item.decision && (
+                        <p className="assessment-assessor">
+                          Not used: no assessment was saved with this suggestion.
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
-        </section>
-      )}
 
-      {/* Reassessment decisions */}
-      {visits.length > 0 && (
-        <section className="details-card">
-          <div className="details-section-heading">
-            <div>
-              <span className="details-section-label">CLINICAL RECORDS</span>
-              <h2>Reassessment decisions</h2>
-              <p className="triage-section-description">
-                "Not required" and "Remind later" decisions for the selected visit.
-              </p>
-            </div>
-
-            <span className="visit-count">
-              {decisions.length} {decisions.length === 1 ? 'decision' : 'decisions'}
-            </span>
-          </div>
-
-          {decisions.length === 0 ? (
-            <div className="details-empty-state">
-              No reassessment decisions have been recorded for this visit.
-            </div>
-          ) : (
-            <div className="assessment-list">
-              {decisions.map((decision) => (
-                <article className="assessment-item" key={decision.id}>
-                  <div className="assessment-item-heading">
-                    <div>
-                      <h3>
-                        {decision.decision === 'not_required'
-                          ? 'Reassessment not required'
-                          : `Reminder set for ${formatDateTime(decision.defer_until)}`}
-                      </h3>
-                      <p>{formatDateTime(decision.created_at)}</p>
-                    </div>
-                  </div>
-
-                  {decision.reason && (
-                    <p className="assessment-description">
-                      <strong>Reason:</strong> {decision.reason}
-                    </p>
-                  )}
-
-                  <p className="assessment-assessor">
-                    Recorded by: {decision.decided_by_name || 'Staff member'}
-                    {decision.priority && ` · priority at the time: ${decision.priority}`}
+          {/* Reassessment decisions */}
+          {visits.length > 0 && (
+            <section className="details-card">
+              <div className="details-section-heading">
+                <div>
+                  <span className="details-section-label">CLINICAL RECORDS</span>
+                  <h2>Reassessment decisions</h2>
+                  <p className="triage-section-description">
+                    "Not required" and "Remind later" decisions for the selected visit.
                   </p>
-                </article>
-              ))}
-            </div>
+                </div>
+
+                <span className="visit-count">
+                  {decisions.length} {decisions.length === 1 ? 'decision' : 'decisions'}
+                </span>
+              </div>
+
+              {decisions.length === 0 ? (
+                <div className="details-empty-state">
+                  No reassessment decisions have been recorded for this visit.
+                </div>
+              ) : (
+                <div className="assessment-list">
+                  {decisions.map((decision) => (
+                    <article className="assessment-item" key={decision.id}>
+                      <div className="assessment-item-heading">
+                        <div>
+                          <h3>
+                            {decision.decision === 'not_required'
+                              ? 'Reassessment not required'
+                              : `Reminder set for ${formatDateTime(decision.defer_until)}`}
+                          </h3>
+                          <p>{formatDateTime(decision.created_at)}</p>
+                        </div>
+                      </div>
+
+                      {decision.reason && (
+                        <p className="assessment-description">
+                          <strong>Reason:</strong> {decision.reason}
+                        </p>
+                      )}
+
+                      <p className="assessment-assessor">
+                        Recorded by: {decision.decided_by_name || 'Staff member'}
+                        {decision.priority && ` · priority at the time: ${decision.priority}`}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
+        </>
+      ) : (
+        <section className="details-card">
+          <div className="details-empty-state" role="note">
+            Clinical information (assessments, clinical notes, simulated AI
+            suggestions and reassessment decisions) is restricted for your
+            role. Registration details and visit status are shown above.
+          </div>
         </section>
       )}
     </main>

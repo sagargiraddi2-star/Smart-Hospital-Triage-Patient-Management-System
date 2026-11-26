@@ -1,19 +1,25 @@
 const express = require('express');
+const { canViewClinical, requirePermission } = require('../lib/auth');
 
 const router = express.Router();
 
-// Check whether a staff member is logged in.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to access patient queues.',
-    });
+const ALLOWED_PRIORITIES = ['critical', 'high', 'medium', 'low'];
+
+// Phase 7: the chief complaint is clinical information. Roles without
+// 'clinical.view' (hospital management) receive queue and visit-history
+// rows without it. The triage priority category stays visible because the
+// queues cannot be read operationally without it.
+function redactClinical(req, rows) {
+  if (canViewClinical(req)) {
+    return rows;
   }
 
-  next();
+  return rows.map((row) => ({
+    ...row,
+    chief_complaint: null,
+    clinical_restricted: true,
+  }));
 }
-
-const ALLOWED_PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
 // One transaction-scoped lock serialises queue-order and priority changes,
 // so two staff members cannot interleave a reorder with a priority change.
@@ -65,7 +71,7 @@ class QueueRequestError extends Error {
 
 // GET /api/queues
 // Retrieve all active patient visits with their latest triage assessment.
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requirePermission('queues.view'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   try {
@@ -123,7 +129,7 @@ router.get('/', requireAuth, async (req, res) => {
     `);
 
     res.json({
-      queues: result.rows,
+      queues: redactClinical(req, result.rows),
     });
 
   } catch (error) {
@@ -137,7 +143,7 @@ router.get('/', requireAuth, async (req, res) => {
 
 // GET /api/queues/completed
 // Retrieve all completed patient visits.
-router.get('/completed', requireAuth, async (req, res) => {
+router.get('/completed', requirePermission('queues.view'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   try {
@@ -185,7 +191,7 @@ router.get('/completed', requireAuth, async (req, res) => {
     `);
 
     res.json({
-      visits: result.rows,
+      visits: redactClinical(req, result.rows),
     });
 
   } catch (error) {
@@ -199,7 +205,7 @@ router.get('/completed', requireAuth, async (req, res) => {
 
 // PATCH /api/queues/:visitId/status
 // Update a patient's visit status.
-router.patch('/:visitId/status', requireAuth, async (req, res) => {
+router.patch('/:visitId/status', requirePermission('queues.manage'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   const visitId = Number(req.params.visitId);
@@ -324,7 +330,7 @@ router.patch('/:visitId/status', requireAuth, async (req, res) => {
 // The change is stored as a new 'priority_update' entry in
 // triage_assessments, so earlier assessments are never overwritten.
 // Vital signs are not copied, because none were measured for this entry.
-router.patch('/:visitId/priority', requireAuth, async (req, res) => {
+router.patch('/:visitId/priority', requirePermission('queues.manage'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseVisitId(req.params.visitId);
   const { priority } = req.body || {};
@@ -446,7 +452,7 @@ router.patch('/:visitId/priority', requireAuth, async (req, res) => {
 // priority. Clinical priority grouping is therefore never overridden.
 // If expectedNeighborVisitId does not match the neighbour the server sees,
 // someone else changed the queue first and the request is rejected (409).
-router.patch('/:visitId/position', requireAuth, async (req, res) => {
+router.patch('/:visitId/position', requirePermission('queues.manage'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseVisitId(req.params.visitId);
   const { direction, expectedNeighborVisitId } = req.body || {};

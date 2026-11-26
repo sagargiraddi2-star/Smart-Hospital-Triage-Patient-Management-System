@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Login.css';
+import { useAuth } from './authContext.js';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const auth = useAuth();
 
   const [email, setEmail] = useState(
     location.state?.registeredEmail || ''
@@ -43,14 +45,10 @@ export default function Login() {
         throw new Error(data.message || 'Could not sign in.');
       }
 
-      // Save the user's details for this navigation.
-      // The server session remains the source of authentication.
-      navigate('/dashboard', {
-        replace: true,
-        state: {
-          user: data.user,
-        },
-      });
+      // Load the signed-in user and their permissions into the shared
+      // auth state before opening the dashboard.
+      await auth.refresh();
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       if (error instanceof TypeError) {
         setFormError(
@@ -89,7 +87,7 @@ export default function Login() {
 
         {registrationSuccess && (
           <p className="form-success" role="status">
-            {registrationSuccess} You can now sign in.
+            {registrationSuccess}
           </p>
         )}
 

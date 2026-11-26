@@ -1,18 +1,7 @@
 const express = require('express');
+const { requirePermission } = require('../lib/auth');
 
 const router = express.Router();
-
-// Check whether a staff member is logged in.
-// Role-based restrictions (e.g. management only) are planned for Phase 7.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to manage departments.',
-    });
-  }
-
-  next();
-}
 
 // Per-department figures. Workload counts distinct patients with active
 // visits; total_visits counts every visit ever recorded for the department.
@@ -73,7 +62,7 @@ function sendDuplicateNameError(res) {
 // GET /api/departments?status=active|all
 // List departments with their current workload. Inactive departments are
 // included unless status=active (used by the registration form).
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requirePermission('departments.view'), async (req, res) => {
   const pool = req.app.locals.pool;
   const status = req.query.status || 'all';
 
@@ -107,7 +96,7 @@ router.get('/', requireAuth, async (req, res) => {
 // GET /api/departments/workload
 // Current workload for every active department (including those with no
 // patients) plus any inactive department that still has active patients.
-router.get('/workload', requireAuth, async (req, res) => {
+router.get('/workload', requirePermission('departments.view'), async (req, res) => {
   const pool = req.app.locals.pool;
 
   try {
@@ -131,7 +120,7 @@ router.get('/workload', requireAuth, async (req, res) => {
 
 // POST /api/departments
 // Body: { name }
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requirePermission('departments.manage'), async (req, res) => {
   const pool = req.app.locals.pool;
   const { name, error } = normaliseName(req.body?.name);
 
@@ -169,7 +158,7 @@ router.post('/', requireAuth, async (req, res) => {
 // PATCH /api/departments/:id
 // Body: { name?, isActive? } — rename and/or activate/deactivate.
 // Departments are never deleted, so historical visits stay linked.
-router.patch('/:id', requireAuth, async (req, res) => {
+router.patch('/:id', requirePermission('departments.manage'), async (req, res) => {
   const pool = req.app.locals.pool;
   const id = parseId(req.params.id);
   const body = req.body || {};

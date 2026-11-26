@@ -157,7 +157,11 @@ function CompletedVisits() {
                       </span>
                     </td>
 
-                    <td>{visit.chief_complaint || 'Not recorded'}</td>
+                    <td>
+                      {visit.clinical_restricted
+                        ? 'Restricted (clinical information)'
+                        : visit.chief_complaint || 'Not recorded'}
+                    </td>
 
                     <td>
                       <span

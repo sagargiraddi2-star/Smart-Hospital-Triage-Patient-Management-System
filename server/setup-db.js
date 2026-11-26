@@ -113,6 +113,10 @@ async function setupDatabase() {
     //     staff decisions made about them. Additive and safe to re-run.
     await runPhase6Migration();
 
+    // 11. Phase 7 migration: account status, the admin role and an audit
+    //     log of account changes. Safe to re-run.
+    await runPhase7Migration();
+
     console.log('Database setup completed successfully!');
     console.log(
       'Users, patients, patient_visits and triage_assessments tables are ready.'
@@ -445,6 +449,79 @@ async function runPhase6Migration() {
 
     await client.query('COMMIT');
     console.log('Phase 6 simulated AI triage migration applied.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function runPhase7Migration() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Account status. Existing users stay active (default TRUE) and are
+    // treated as already approved, so nothing changes for them.
+    await client.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    `);
+
+    // Only fills the new column for accounts that existed before Phase 7
+    // (active and never approved through the new workflow).
+    await client.query(`
+      UPDATE users
+      SET approved_at = created_at
+      WHERE approved_at IS NULL
+        AND is_active
+        AND NOT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_name = 'user_account_changes'
+        );
+    `);
+
+    // Approved change: allow the 'admin' role. Existing values (doctor,
+    // nurse, management) remain valid; PostgreSQL re-checks every row.
+    await client.query(`
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+    `);
+    await client.query(`
+      ALTER TABLE users
+        ADD CONSTRAINT users_role_check
+        CHECK (role IN ('doctor', 'nurse', 'management', 'admin'));
+    `);
+
+    // Audit log of account changes. Rows are only ever added.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_account_changes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action VARCHAR(40) NOT NULL
+          CHECK (action IN (
+            'registered', 'approved', 'role_changed', 'enabled',
+            'disabled', 'bootstrap_created_admin', 'bootstrap_promoted_admin'
+          )),
+        old_role VARCHAR(30),
+        new_role VARCHAR(30),
+        old_active BOOLEAN,
+        new_active BOOLEAN,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_account_changes_user
+      ON user_account_changes (user_id, created_at DESC);
+    `);
+
+    await client.query('COMMIT');
+    console.log('Phase 7 account security migration applied.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

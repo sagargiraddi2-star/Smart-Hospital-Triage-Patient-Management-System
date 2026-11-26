@@ -1,19 +1,8 @@
 const express = require('express');
+const { requirePermission } = require('../lib/auth');
 const aiTriage = require('../lib/aiTriage');
 
 const router = express.Router();
-
-// Check whether a staff member is logged in.
-// Role-based restrictions are planned for Phase 7.
-function requireAuth(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({
-      message: 'Please log in to use the simulated AI demonstration.',
-    });
-  }
-
-  next();
-}
 
 function parseId(value) {
   const id = Number(value);
@@ -22,7 +11,7 @@ function parseId(value) {
 
 // GET /api/ai-triage/status
 // Describes the (simulated) provider and the available demo scenarios.
-router.get('/status', requireAuth, (req, res) => {
+router.get('/status', requirePermission('ai.use'), (req, res) => {
   res.json({
     provider: aiTriage.PROVIDER_NAME,
     simulated: true,
@@ -36,7 +25,7 @@ router.get('/status', requireAuth, (req, res) => {
 // Produces a simulated suggestion for the staff-selected scenario and
 // saves the request and response immediately. It never creates an
 // assessment and never changes a patient's priority.
-router.post('/suggestions', requireAuth, async (req, res) => {
+router.post('/suggestions', requirePermission('ai.use'), async (req, res) => {
   const pool = req.app.locals.pool;
   const { visitId, scenarioKey, blankFields = [] } = req.body || {};
   const parsedVisitId = parseId(visitId);
@@ -114,7 +103,7 @@ router.post('/suggestions', requireAuth, async (req, res) => {
 // POST /api/ai-triage/suggestions/:id/discard
 // Records that staff discarded the suggestion. Allowed only once, and only
 // while no decision has been recorded.
-router.post('/suggestions/:id/discard', requireAuth, async (req, res) => {
+router.post('/suggestions/:id/discard', requirePermission('ai.use'), async (req, res) => {
   const pool = req.app.locals.pool;
   const id = parseId(req.params.id);
 
@@ -170,7 +159,7 @@ router.post('/suggestions/:id/discard', requireAuth, async (req, res) => {
 // GET /api/ai-triage/visits/:visitId/suggestions
 // All simulated suggestions for a visit, newest first, including
 // discarded and unused ones.
-router.get('/visits/:visitId/suggestions', requireAuth, async (req, res) => {
+router.get('/visits/:visitId/suggestions', requirePermission('clinical.view'), async (req, res) => {
   const pool = req.app.locals.pool;
   const visitId = parseId(req.params.visitId);
 

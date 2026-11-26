@@ -10,6 +10,14 @@ import Queues from './Queues';
 import CompletedVisits from './CompletedVisits.jsx';
 import Departments from './Departments.jsx';
 import Reassessments from './Reassessments.jsx';
+import Users from './Users.jsx';
+import RequireAuth from './RequireAuth.jsx';
+
+// Wrap a page with the route guard and the permission it needs
+// (permission names: server/lib/permissions.js).
+function guard(permission, page) {
+  return <RequireAuth permission={permission}>{page}</RequireAuth>;
+}
 
 const features = [
   {
@@ -304,14 +312,15 @@ function App() {
       <Route path="/" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/patients" element={<Patients />} />
-      <Route path="/patients/:id" element={<PatientDetails />} />
-      <Route path="/queues" element={<Queues />} />
-      <Route path="/queues/emergency" element={<Queues />} />
-      <Route path="/visit-history" element={<CompletedVisits />} />
-      <Route path="/departments" element={<Departments />} />
-      <Route path="/reassessments" element={<Reassessments />} />
+      <Route path="/dashboard" element={guard('dashboard.view', <Dashboard />)} />
+      <Route path="/patients" element={guard('patients.view', <Patients />)} />
+      <Route path="/patients/:id" element={guard('patients.view', <PatientDetails />)} />
+      <Route path="/queues" element={guard('queues.view', <Queues />)} />
+      <Route path="/queues/emergency" element={guard('queues.view', <Queues />)} />
+      <Route path="/visit-history" element={guard('queues.view', <CompletedVisits />)} />
+      <Route path="/departments" element={guard('departments.view', <Departments />)} />
+      <Route path="/reassessments" element={guard('reassessments.view', <Reassessments />)} />
+      <Route path="/users" element={guard('users.manage', <Users />)} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

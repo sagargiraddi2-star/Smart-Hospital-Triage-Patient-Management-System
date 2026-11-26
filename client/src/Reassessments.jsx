@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import './Queues.css';
 import './Departments.css';
 import './Reassessments.css';
+import { useAuth } from './authContext.js';
 
 const API_URL = 'http://localhost:5000/api/reassessments';
 const REFRESH_INTERVAL_MS = 60 * 1000;
@@ -99,6 +100,11 @@ function emptyToNull(value) {
 
 function Reassessments() {
   const navigate = useNavigate();
+  const auth = useAuth();
+  // "Not required" / "Remind later" and reassessing are clinical actions;
+  // editing interval settings is for management and administrators.
+  const canDecide = auth.can('reassessments.decide');
+  const canEditSettings = auth.can('reassessments.settings.edit');
 
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -345,6 +351,7 @@ function Reassessments() {
                   <ReassessmentRow
                     key={patient.visit_id}
                     patient={patient}
+                    canDecide={canDecide}
                     action={action?.visitId === patient.visit_id ? action : null}
                     busy={busy}
                     reason={reason}
@@ -495,6 +502,7 @@ function Reassessments() {
                           : 'Never'}
                       </td>
                       <td>
+                        {canEditSettings ? (
                         <button
                           type="button"
                           className="department-secondary-action"
@@ -503,6 +511,9 @@ function Reassessments() {
                         >
                           Edit
                         </button>
+                        ) : (
+                          <span className="queue-cell-note">View only</span>
+                        )}
                       </td>
                     </tr>
                   )
@@ -518,6 +529,7 @@ function Reassessments() {
 
 function ReassessmentRow({
   patient,
+  canDecide,
   action,
   busy,
   reason,
@@ -544,9 +556,13 @@ function ReassessmentRow({
         <td>{patient.department || '—'}</td>
         <td>{patient.visit_type === 'emergency' ? 'Emergency' : 'Normal'}</td>
         <td>
-          <span className={`priority-badge ${patient.current_priority || 'unassigned'}`}>
-            {formatPriority(patient.current_priority)}
-          </span>
+          {patient.priority_restricted ? (
+            <span className="queue-cell-note">Restricted</span>
+          ) : (
+            <span className={`priority-badge ${patient.current_priority || 'unassigned'}`}>
+              {formatPriority(patient.current_priority)}
+            </span>
+          )}
         </td>
         <td>{formatDateTime(patient.last_assessment_at)}</td>
         <td className="queue-waiting-time">
@@ -570,13 +586,17 @@ function ReassessmentRow({
         <td>
           <div className="queue-action-buttons">
             <Link
-              to={`/patients/${patient.patient_id}?visit=${patient.visit_id}&reassess=1`}
+              to={
+                canDecide
+                  ? `/patients/${patient.patient_id}?visit=${patient.visit_id}&reassess=1`
+                  : `/patients/${patient.patient_id}`
+              }
               className="queue-status-action start reassessment-link"
             >
-              {active ? 'Reassess' : 'View patient'}
+              {active && canDecide ? 'Reassess' : 'View patient'}
             </Link>
 
-            {active && (
+            {active && canDecide && (
               <div className="department-actions">
                 <button
                   type="button"

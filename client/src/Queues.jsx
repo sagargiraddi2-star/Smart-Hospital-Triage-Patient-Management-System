@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Queues.css';
+import { useAuth } from './authContext.js';
 
 const API_URL = 'http://localhost:5000/api/queues';
 const DEPARTMENTS_URL = 'http://localhost:5000/api/departments';
@@ -161,6 +162,9 @@ function getNeighbor(queueList, patient, direction) {
 
 function Queues() {
   const location = useLocation();
+  const auth = useAuth();
+  // Priority changes, reordering and consultation actions are clinical.
+  const canManage = auth.can('queues.manage');
 
   const isEmergencyQueue =
     location.pathname === '/queues/emergency';
@@ -533,6 +537,7 @@ function Queues() {
                   <tr key={patient.visit_id}>
 
                     <td>
+                      {canManage ? (
                       <div
                         className="queue-reorder-buttons"
                         title={reorderHint || undefined}
@@ -560,6 +565,9 @@ function Queues() {
                           ▼
                         </button>
                       </div>
+                      ) : (
+                        <span className="queue-cell-note">—</span>
+                      )}
                     </td>
 
                     <td>
@@ -577,11 +585,17 @@ function Queues() {
                     </td>
 
                     <td>
-                      {patient.chief_complaint || 'Not recorded'}
+                      {patient.clinical_restricted
+                        ? <span className="queue-cell-note">Restricted (clinical information)</span>
+                        : patient.chief_complaint || 'Not recorded'}
                     </td>
 
                     <td>
-                      {patient.triage_priority ? (
+                      {patient.triage_priority && !canManage ? (
+                        <span className={`priority-badge ${patient.triage_priority}`}>
+                          {formatPriority(patient.triage_priority)}
+                        </span>
+                      ) : patient.triage_priority ? (
                         <select
                           className={`priority-badge priority-select ${patient.triage_priority}`}
                           value={patient.triage_priority}
@@ -602,9 +616,11 @@ function Queues() {
                           <span className="priority-badge unassigned">
                             {formatPriority(patient.triage_priority)}
                           </span>
-                          <span className="queue-cell-note">
-                            Triage via View Patient
-                          </span>
+                          {canManage && (
+                            <span className="queue-cell-note">
+                              Triage via View Patient
+                            </span>
+                          )}
                         </>
                       )}
 
@@ -654,7 +670,7 @@ function Queues() {
                     <td>
                       <div className="queue-action-buttons">
 
-                        {patient.status === 'waiting' && (
+                        {canManage && patient.status === 'waiting' && (
                           <button
                             type="button"
                             className="queue-status-action start"
@@ -667,7 +683,7 @@ function Queues() {
                           </button>
                         )}
 
-                        {patient.status === 'in_progress' && (
+                        {canManage && patient.status === 'in_progress' && (
                           <button
                             type="button"
                             className="queue-status-action complete"

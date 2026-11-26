@@ -1,12 +1,30 @@
 
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { requireAuth } = require('../lib/auth');
+const { createLoginLimiter } = require('../lib/loginLimiter');
 
 const router = express.Router();
 
+// Roles that may self-register. Management and administrator accounts are
+// assigned by an administrator.
 const allowedRoles = ['doctor', 'nurse'];
 
-// Register a new staff account.
+const BCRYPT_ROUNDS = 12;
+
+// Used when an email address is not registered, so a failed login takes
+// about as long as one with a wrong password (no account enumeration by
+// timing). The hashed value is random and never stored.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+  crypto.randomBytes(32).toString('hex'),
+  BCRYPT_ROUNDS
+);
+
+const loginLimiter = createLoginLimiter();
+
+// Register a new staff account. New accounts are created INACTIVE and must
+// be approved by an administrator before they can log in.
 router.post('/register', async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
@@ -46,26 +64,46 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Management accounts cannot self-register.
+    // Management and administrator accounts cannot self-register.
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
         message: 'Please select an approved staff role.',
       });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const client = await req.app.locals.pool.connect();
 
-    const result = await req.app.locals.pool.query(
-      `INSERT INTO users (full_name, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, full_name, email, role, created_at`,
-      [cleanedName, cleanedEmail, passwordHash, role]
-    );
+    try {
+      await client.query('BEGIN');
 
-    return res.status(201).json({
-      message: 'Account created successfully.',
-      user: result.rows[0],
-    });
+      const result = await client.query(
+        `INSERT INTO users (full_name, email, password_hash, role, is_active)
+         VALUES ($1, $2, $3, $4, FALSE)
+         RETURNING id, full_name, email, role, is_active, created_at`,
+        [cleanedName, cleanedEmail, passwordHash, role]
+      );
+
+      await client.query(
+        `INSERT INTO user_account_changes
+           (user_id, changed_by, action, new_role, new_active)
+         VALUES ($1, NULL, 'registered', $2, FALSE)`,
+        [result.rows[0].id, role]
+      );
+
+      await client.query('COMMIT');
+
+      return res.status(201).json({
+        message:
+          'Account created. An administrator must approve it before you can sign in.',
+        user: result.rows[0],
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     if (error.code === '23505') {
       return res.status(409).json({
@@ -97,18 +135,58 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const cleanedEmail = email.trim().toLowerCase();
+    const ip = req.ip || 'unknown';
+    const waitSeconds = loginLimiter.retryAfterSeconds(ip, cleanedEmail);
+
+    if (waitSeconds > 0) {
+      res.set('Retry-After', String(waitSeconds));
+
+      return res.status(429).json({
+        message: `Too many failed sign-in attempts. Please try again in ${Math.ceil(waitSeconds / 60)} minute(s).`,
+      });
+    }
+
+    // Many failures from this address (across any emails): slow every
+    // attempt down instead of blocking, so staff sharing the address can
+    // still sign in with the correct password.
+    const slowdown = loginLimiter.delayMs(ip);
+
+    if (slowdown > 0) {
+      await new Promise((resolve) => setTimeout(resolve, slowdown));
+    }
+
     const result = await req.app.locals.pool.query(
-      `SELECT id, full_name, email, password_hash, role
+      `SELECT id, full_name, email, password_hash, role, is_active, approved_at
        FROM users
        WHERE email = $1`,
-      [email.trim().toLowerCase()]
+      [cleanedEmail]
     );
 
     const user = result.rows[0];
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    // Always run one bcrypt comparison, even for unknown emails.
+    const passwordMatches = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH
+    );
+
+    if (!user || !passwordMatches) {
+      loginLimiter.recordFailure(ip, cleanedEmail);
+
       return res.status(401).json({
         message: 'Invalid email or password.',
+      });
+    }
+
+    loginLimiter.recordSuccess(ip, cleanedEmail);
+
+    // Correct password, but the account cannot be used yet / any more.
+    if (!user.is_active) {
+      return res.status(403).json({
+        message: user.approved_at
+          ? 'Your account has been disabled. Please contact an administrator.'
+          : 'Your account is awaiting administrator approval.',
       });
     }
 
@@ -151,38 +229,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Check whether the current session belongs to a logged-in user.
-router.get('/me', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({
-        message: 'You are not logged in.',
-      });
-    }
+// The current user and their permissions (from lib/permissions.js).
+// requireAuth re-checks the account on every call.
+router.get('/me', requireAuth, (req, res) => {
+  const { id, full_name: fullName, email, role } = req.user;
 
-    const result = await req.app.locals.pool.query(
-      `SELECT id, full_name, email, role
-       FROM users
-       WHERE id = $1`,
-      [req.session.userId]
-    );
-
-    if (!result.rows[0]) {
-      return req.session.destroy(() => {
-        res.status(401).json({
-          message: 'Your account could not be found.',
-        });
-      });
-    }
-
-    return res.json({ user: result.rows[0] });
-  } catch (error) {
-    console.error('Session check error:', error.message);
-
-    return res.status(500).json({
-      message: 'Could not check your login status.',
-    });
-  }
+  return res.json({
+    user: { id, full_name: fullName, email, role },
+    permissions: req.permissions,
+  });
 });
 
 // Log out and destroy the session.
