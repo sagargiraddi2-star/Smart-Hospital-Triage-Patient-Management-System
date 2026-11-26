@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
 
+// Roles that can be chosen during public registration. The backend
+// (server/routes/auth.js) accepts only these three values.
 const roles = [
   {
     value: 'doctor',
@@ -24,6 +26,15 @@ const roles = [
   },
 ];
 
+// Shown for information only: administrator accounts cannot be
+// self-registered and this option can never be selected.
+const restrictedRole = {
+  icon: '⚙',
+  title: 'System administrator',
+  description:
+    'Administrator accounts can only be created through an authorised administrator.',
+};
+
 export default function Register() {
   const navigate = useNavigate();
 
@@ -41,13 +52,6 @@ export default function Register() {
 
     if (password !== confirmPassword) {
       setFormError('Your passwords do not match. Please try again.');
-      return;
-    }
-
-    if (selectedRole === 'management') {
-      setFormError(
-        'Hospital management accounts must be created or approved by an administrator.'
-      );
       return;
     }
 
@@ -182,6 +186,23 @@ export default function Register() {
                   </span>
                 </button>
               ))}
+
+              <div
+                className="role-option restricted"
+                aria-disabled="true"
+              >
+                <span className="role-option-icon" aria-hidden="true">
+                  {restrictedRole.icon}
+                </span>
+
+                <span className="role-option-copy">
+                  <strong>
+                    {restrictedRole.title}
+                    <span className="role-restricted-tag">Restricted</span>
+                  </strong>
+                  <small>{restrictedRole.description}</small>
+                </span>
+              </div>
             </div>
 
             <input type="hidden" name="role" value={selectedRole} />

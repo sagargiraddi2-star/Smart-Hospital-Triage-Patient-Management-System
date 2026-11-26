@@ -338,7 +338,11 @@ function Users() {
                   <tr key={change.id}>
                     <td>{formatDateTime(change.created_at)}</td>
                     <td>{change.user_name || '—'}</td>
-                    <td>{ACTION_LABELS[change.action] || change.action}</td>
+                    <td>
+                      {change.action === 'registered' && change.new_active
+                        ? 'Registered (active)'
+                        : ACTION_LABELS[change.action] || change.action}
+                    </td>
                     <td>
                       {change.action === 'role_changed'
                         ? `${ROLE_LABELS[change.old_role] || change.old_role} → ${ROLE_LABELS[change.new_role] || change.new_role}`

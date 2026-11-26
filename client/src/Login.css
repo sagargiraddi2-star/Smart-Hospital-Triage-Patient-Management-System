@@ -292,6 +292,30 @@
   background: #328a80;
 }
 
+.role-option.restricted,
+.role-option.restricted:hover {
+  border-style: dashed;
+  border-color: #dce5ea;
+  background: #f7f9fb;
+  color: #71808d;
+  cursor: not-allowed;
+}
+
+.role-option.restricted .role-option-icon {
+  background: #f1f4f6;
+  color: #7d8b96;
+}
+
+.role-restricted-tag {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: #f1f4f6;
+  color: #7d8b96;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .role-option:focus-visible {
   outline: 3px solid rgba(50, 138, 128, 0.25);
   outline-offset: 3px;

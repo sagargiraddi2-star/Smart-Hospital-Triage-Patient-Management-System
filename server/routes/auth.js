@@ -7,9 +7,11 @@ const { createLoginLimiter } = require('../lib/loginLimiter');
 
 const router = express.Router();
 
-// Roles that may self-register. Management and administrator accounts are
-// assigned by an administrator.
-const allowedRoles = ['doctor', 'nurse'];
+// Roles that may self-register (clinical staff and hospital management).
+// Administrator accounts can NEVER be self-registered: they are created only
+// by the bootstrap script (scripts/create-admin.js) or by an existing
+// administrator changing a user's role on the User management page.
+const allowedRoles = ['doctor', 'nurse', 'management'];
 
 const BCRYPT_ROUNDS = 12;
 
@@ -23,8 +25,9 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
 
 const loginLimiter = createLoginLimiter();
 
-// Register a new staff account. New accounts are created INACTIVE and must
-// be approved by an administrator before they can log in.
+// Register a new staff account. Doctor, nurse and management accounts are
+// active immediately; approved_at is set so that if an administrator later
+// disables the account it is reported as "disabled", not "pending".
 router.post('/register', async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
@@ -64,7 +67,8 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Management and administrator accounts cannot self-register.
+    // Only the self-registerable roles are accepted; 'admin' (or anything
+    // else) is rejected here, so public registration cannot escalate.
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
         message: 'Please select an approved staff role.',
@@ -78,8 +82,8 @@ router.post('/register', async (req, res) => {
       await client.query('BEGIN');
 
       const result = await client.query(
-        `INSERT INTO users (full_name, email, password_hash, role, is_active)
-         VALUES ($1, $2, $3, $4, FALSE)
+        `INSERT INTO users (full_name, email, password_hash, role, is_active, approved_at)
+         VALUES ($1, $2, $3, $4, TRUE, NOW())
          RETURNING id, full_name, email, role, is_active, created_at`,
         [cleanedName, cleanedEmail, passwordHash, role]
       );
@@ -87,15 +91,14 @@ router.post('/register', async (req, res) => {
       await client.query(
         `INSERT INTO user_account_changes
            (user_id, changed_by, action, new_role, new_active)
-         VALUES ($1, NULL, 'registered', $2, FALSE)`,
+         VALUES ($1, NULL, 'registered', $2, TRUE)`,
         [result.rows[0].id, role]
       );
 
       await client.query('COMMIT');
 
       return res.status(201).json({
-        message:
-          'Account created. An administrator must approve it before you can sign in.',
+        message: 'Account created. You can now sign in.',
         user: result.rows[0],
       });
     } catch (error) {
