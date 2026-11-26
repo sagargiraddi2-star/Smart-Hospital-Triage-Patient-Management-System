@@ -2,6 +2,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import './PatientDetails.css';
+import SimulatedAiPanel from './SimulatedAiPanel.jsx';
+import {
+  EMPTY_AI_STATE,
+  formatPriorityLabel,
+  getFinalDecision,
+} from './simulatedAi.js';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -79,6 +85,11 @@ function PatientDetails() {
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
 
+  // Simulated AI demonstration (Phase 6): the current suggestion and the
+  // staff's pending decision, plus the visit's full suggestion log.
+  const [ai, setAi] = useState(EMPTY_AI_STATE);
+  const [aiLog, setAiLog] = useState([]);
+
   // Load patient information and visits.
   useEffect(() => {
     async function loadPatientDetails() {
@@ -106,6 +117,10 @@ function PatientDetails() {
 
         setPatient(data.patient);
         setVisits(data.visits || []);
+
+        // A different patient or visit has been loaded: never carry over a
+        // simulated suggestion from the previous one.
+        setAi(EMPTY_AI_STATE);
 
         if (data.visits && data.visits.length > 0) {
           const requestedVisit = data.visits.find(
@@ -183,6 +198,20 @@ function PatientDetails() {
         } catch {
           setDecisions([]);
         }
+
+        // Simulated AI suggestion log (supplementary, like decisions).
+        try {
+          const aiResponse = await fetch(
+            `http://localhost:5000/api/ai-triage/visits/${encodeURIComponent(selectedVisitId)}/suggestions`,
+            { credentials: 'include' }
+          );
+          const aiData = aiResponse.ok
+            ? await aiResponse.json()
+            : { suggestions: [] };
+          setAiLog(aiData.suggestions || []);
+        } catch {
+          setAiLog([]);
+        }
       } catch (err) {
         setAssessmentError(
           err.message || 'Could not load assessment history.'
@@ -215,6 +244,16 @@ function PatientDetails() {
       return;
     }
 
+    // A requested simulated suggestion needs an explicit staff decision.
+    if (ai.suggestion && !ai.decision) {
+      setSaveError(
+        'Accept, override or discard the simulated AI suggestion before saving.'
+      );
+      return;
+    }
+
+    const finalDecision = getFinalDecision(ai, form.triagePriority);
+
     try {
       setIsSaving(true);
 
@@ -227,6 +266,14 @@ function PatientDetails() {
         body: JSON.stringify({
           visitId: selectedVisitId,
           ...form,
+          ...(finalDecision && {
+            aiSuggestion: {
+              id: ai.suggestion.id,
+              decision: finalDecision,
+              overrideReason:
+                finalDecision === 'overridden' ? ai.overrideReason : null,
+            },
+          }),
         }),
       });
 
@@ -237,12 +284,40 @@ function PatientDetails() {
         return;
       }
 
+      // The suggestion already has a decision, so nothing was saved now.
+      if (response.status === 409 && data.alreadyDecided) {
+        setAi(EMPTY_AI_STATE);
+        setAssessmentRefresh((previous) => previous + 1);
+
+        if (
+          data.assessmentId &&
+          (data.decision === 'accepted' || data.decision === 'overridden')
+        ) {
+          // An earlier save (e.g. one whose response was lost, or another
+          // tab) already saved an assessment with this suggestion. The form
+          // is kept so staff can compare it with the saved history.
+          setSaveMessage(
+            'An assessment using this simulated suggestion had already been saved (shown in the history below). ' +
+              'No duplicate was created and this form was NOT saved again. ' +
+              'If the saved assessment matches this form, clear the form instead of saving it again.'
+          );
+        } else {
+          setSaveError(
+            'This simulated suggestion had already been discarded, so this assessment was NOT saved. ' +
+              'Save again without the suggestion, or request a new one.'
+          );
+        }
+
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.message || 'Could not save assessment.');
       }
 
       setSaveMessage('Assessment saved successfully.');
       setForm(initialForm);
+      setAi(EMPTY_AI_STATE);
       setAssessmentRefresh((previous) => previous + 1);
     } catch (err) {
       setSaveError(err.message || 'Something went wrong.');
@@ -464,6 +539,7 @@ function PatientDetails() {
                   setSelectedVisitId(event.target.value);
                   setSaveMessage('');
                   setSaveError('');
+                  setAi(EMPTY_AI_STATE);
                 }}
                 required
               >
@@ -598,6 +674,21 @@ function PatientDetails() {
                 />
               </div>
             </div>
+
+            <SimulatedAiPanel
+              key={`${id}-${selectedVisitId}`}
+              visitId={selectedVisitId ? Number(selectedVisitId) : null}
+              form={form}
+              ai={ai}
+              onAiChange={setAi}
+              onPriorityChange={(priority) =>
+                setForm((previousForm) => ({
+                  ...previousForm,
+                  triagePriority: priority,
+                }))
+              }
+              onRecorded={() => setAssessmentRefresh((previous) => previous + 1)}
+            />
 
             <div className="triage-form-group">
               <label htmlFor="triagePriority">
@@ -782,6 +873,20 @@ function PatientDetails() {
                     <p className="assessment-assessor">
                       Assessed by: {assessment.assessed_by_name || 'Staff member'}
                     </p>
+
+                    {aiLog
+                      .filter((item) => item.assessment_id === assessment.id)
+                      .map((item) => (
+                        <p className="assessment-ai-link" key={item.id}>
+                          <strong>Simulated AI suggestion (demonstration):</strong>{' '}
+                          {formatPriorityLabel(item.suggested_priority)} · Staff final:{' '}
+                          {formatPriorityLabel(item.final_priority)} ·{' '}
+                          {item.decision === 'accepted' ? 'Accepted' : 'Overridden'}
+                          {item.override_reason && ` · Reason: ${item.override_reason}`}
+                          {' '}· by {item.decided_by_name || 'Staff member'},{' '}
+                          {formatDateTime(item.decided_at)}
+                        </p>
+                      ))}
                   </article>
                   )
                 )}
@@ -790,6 +895,83 @@ function PatientDetails() {
           </>
         )}
       </section>
+
+      {/* Simulated AI suggestion log */}
+      {visits.length > 0 && (
+        <section className="details-card">
+          <div className="details-section-heading">
+            <div>
+              <span className="details-section-label">SIMULATED AI DEMONSTRATION</span>
+              <h2>Simulated AI suggestion log</h2>
+              <p className="triage-section-description">
+                Every simulated suggestion requested for the selected visit,
+                including discarded and unused ones. Simulated demonstration
+                output only — not genuine AI analysis.
+              </p>
+            </div>
+
+            <span className="visit-count">
+              {aiLog.length} {aiLog.length === 1 ? 'suggestion' : 'suggestions'}
+            </span>
+          </div>
+
+          {aiLog.length === 0 ? (
+            <div className="details-empty-state">
+              No simulated suggestions have been requested for this visit.
+            </div>
+          ) : (
+            <div className="assessment-list">
+              {aiLog.map((item) => (
+                <article className="assessment-item" key={item.id}>
+                  <div className="assessment-item-heading">
+                    <div>
+                      <span className="assessment-kind">Simulated suggestion</span>
+                      <h3>
+                        {item.can_suggest
+                          ? `Suggested: ${formatPriorityLabel(item.suggested_priority)}`
+                          : 'No suggestion (insufficient information scenario)'}
+                      </h3>
+                      <p>
+                        Requested {formatDateTime(item.requested_at)} by{' '}
+                        {item.requested_by_name || 'Staff member'} · scenario{' '}
+                        {item.scenario_key}
+                      </p>
+                    </div>
+
+                    <span className={`ai-decision-badge ${item.decision || 'none'}`}>
+                      {item.decision === 'accepted'
+                        ? 'Accepted'
+                        : item.decision === 'overridden'
+                          ? 'Overridden'
+                          : item.decision === 'discarded'
+                            ? 'Discarded'
+                            : 'No decision recorded'}
+                    </span>
+                  </div>
+
+                  {item.decision && (
+                    <p className="assessment-assessor">
+                      {item.decision === 'discarded'
+                        ? 'Discarded'
+                        : `Staff final priority: ${formatPriorityLabel(item.final_priority)}`}
+                      {item.override_reason && ` · Reason: ${item.override_reason}`}
+                      {' '}· by {item.decided_by_name || 'Staff member'},{' '}
+                      {formatDateTime(item.decided_at)}
+                      {item.assessment_id && ' · linked to a saved assessment'}
+                    </p>
+                  )}
+
+                  {!item.decision && (
+                    <p className="assessment-assessor">
+                      Not used: no assessment was saved with this suggestion.
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Reassessment decisions */}
       {visits.length > 0 && (

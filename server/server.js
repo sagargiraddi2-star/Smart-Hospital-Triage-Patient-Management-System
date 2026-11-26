@@ -85,6 +85,9 @@ app.use('/api/departments', require('./routes/departments'));
 // Reassessment alert routes.
 app.use('/api/reassessments', require('./routes/reassessments'));
 
+// Simulated AI triage demonstration (local only, no external AI).
+app.use('/api/ai-triage', require('./routes/aiTriage'));
+
 // Unknown API routes return JSON instead of Express's default HTML page,
 // so the frontend never tries to parse an HTML error as JSON.
 app.use('/api', (req, res) => {

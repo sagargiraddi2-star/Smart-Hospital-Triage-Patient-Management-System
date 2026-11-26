@@ -109,6 +109,10 @@ async function setupDatabase() {
     //    Additive and safe to run more than once.
     await runPhase5Migration();
 
+    // 10. Phase 6 migration: simulated AI triage suggestions and the
+    //     staff decisions made about them. Additive and safe to re-run.
+    await runPhase6Migration();
+
     console.log('Database setup completed successfully!');
     console.log(
       'Users, patients, patient_visits and triage_assessments tables are ready.'
@@ -347,6 +351,100 @@ async function runPhase5Migration() {
 
     await client.query('COMMIT');
     console.log('Phase 5 reassessment migration applied.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function runPhase6Migration() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // One row per suggestion request. The response columns are written
+    // once when the suggestion is created and never changed; the decision
+    // columns are written once, later, by an explicit staff action.
+    // Only the visit ID is stored: no names, contact details or copies of
+    // clinical values.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_triage_suggestions (
+        id SERIAL PRIMARY KEY,
+        visit_id INTEGER NOT NULL
+          REFERENCES patient_visits(id) ON DELETE CASCADE,
+        requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+        -- Phase 6 is a simulated demonstration only.
+        provider VARCHAR(30) NOT NULL DEFAULT 'simulated'
+          CHECK (provider = 'simulated'),
+        is_simulated BOOLEAN NOT NULL DEFAULT TRUE
+          CHECK (is_simulated),
+        scenario_key VARCHAR(50) NOT NULL,
+
+        can_suggest BOOLEAN NOT NULL,
+        suggested_priority VARCHAR(20)
+          CHECK (suggested_priority IN ('critical', 'high', 'medium', 'low')),
+        explanation TEXT NOT NULL,
+        considered JSONB NOT NULL DEFAULT '[]'::JSONB,
+        missing_information JSONB NOT NULL DEFAULT '[]'::JSONB,
+        blank_fields JSONB NOT NULL DEFAULT '[]'::JSONB,
+
+        decision VARCHAR(20)
+          CHECK (decision IN ('accepted', 'overridden', 'discarded')),
+        final_priority VARCHAR(20)
+          CHECK (final_priority IN ('critical', 'high', 'medium', 'low')),
+        override_reason TEXT,
+        decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        decided_at TIMESTAMPTZ,
+        assessment_id INTEGER UNIQUE
+          REFERENCES triage_assessments(id) ON DELETE SET NULL,
+
+        -- A suggestion either has a priority or explicitly has none.
+        CHECK (can_suggest = (suggested_priority IS NOT NULL)),
+
+        -- No decision yet: every decision field is empty.
+        CHECK (
+          decision IS NOT NULL
+          OR (final_priority IS NULL AND override_reason IS NULL
+              AND decided_by IS NULL AND decided_at IS NULL
+              AND assessment_id IS NULL)
+        ),
+        CHECK (decision IS NULL OR decided_at IS NOT NULL),
+
+        -- Accepted: the staff priority equals the suggestion.
+        CHECK (
+          decision IS DISTINCT FROM 'accepted'
+          OR (can_suggest AND final_priority = suggested_priority)
+        ),
+
+        -- Overridden: staff chose a different priority.
+        CHECK (
+          decision IS DISTINCT FROM 'overridden'
+          OR (can_suggest AND final_priority IS NOT NULL
+              AND final_priority <> suggested_priority)
+        ),
+
+        -- Discarded: no priority and no linked assessment.
+        CHECK (
+          decision IS DISTINCT FROM 'discarded'
+          OR (final_priority IS NULL AND assessment_id IS NULL)
+        ),
+
+        CHECK (override_reason IS NULL OR decision = 'overridden')
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_triage_suggestions_visit
+      ON ai_triage_suggestions (visit_id, requested_at DESC);
+    `);
+
+    await client.query('COMMIT');
+    console.log('Phase 6 simulated AI triage migration applied.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
