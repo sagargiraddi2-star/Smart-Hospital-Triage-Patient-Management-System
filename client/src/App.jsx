@@ -257,8 +257,8 @@ function Welcome() {
           <h2>Let's make every handoff clearer.</h2>
           <p>
             Hospital staff can sign in to access the TRIORA workspace.
-            Authentication and account registration are the next steps
-            in our build.
+            New staff accounts are reviewed and approved by a system
+            administrator before first sign-in.
           </p>
         </div>
         <div className="access-actions">

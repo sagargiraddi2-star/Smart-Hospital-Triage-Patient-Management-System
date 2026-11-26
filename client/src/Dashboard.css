@@ -704,9 +704,19 @@
 
   .dashboard-brand-copy,
   .sidebar-label,
-  .sidebar-link span:last-child,
   .sidebar-help {
     display: none;
+  }
+
+  /* Hidden visually but still read out by screen readers, so the
+     icon-only links keep their names (Phase 8). */
+  .sidebar-link span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .sidebar-link {

@@ -101,7 +101,7 @@ input {
 }
 
 .brand-copy small {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1.4px;
   font-weight: 700;
   color: #748696;
@@ -376,7 +376,7 @@ input {
   border-left: 1px solid #e1e8ed;
   color: #8c9aa6;
   font-family: 'DM Sans', sans-serif;
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.7px;
 }
 
@@ -396,7 +396,7 @@ input {
   border-radius: 4px;
   color: #278a7b;
   background: #e8f7f2;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.7px;
 }
@@ -415,7 +415,7 @@ input {
 
 .muted-label {
   color: #91a0ac;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 1px;
 }
@@ -442,7 +442,7 @@ input {
   border: 1px solid #e8edf0;
   border-radius: 6px;
   color: #7c8b97;
-  font-size: 8px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -486,7 +486,7 @@ input {
   gap: 5px;
   overflow: hidden;
   color: #95a1ab;
-  font-size: 8px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -590,7 +590,7 @@ input {
 .demo-caption {
   margin: 9px 0 0;
   color: #9aa7b0;
-  font-size: 8px;
+  font-size: 9px;
   text-align: center;
 }
 
@@ -883,7 +883,7 @@ input {
 }
 
 .footer-brand .brand-copy small {
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .site-footer > span {
@@ -1081,7 +1081,7 @@ input {
   }
 
   .brand-copy small {
-    font-size: 7px;
+    font-size: 9px;
     letter-spacing: 1px;
   }
 
@@ -1138,7 +1138,7 @@ input {
   .date-chip {
     max-width: 108px;
     white-space: normal;
-    font-size: 7px;
+    font-size: 9px;
   }
 
   .stat-grid {
@@ -1150,7 +1150,7 @@ input {
   }
 
   .stat-card > span {
-    font-size: 7px;
+    font-size: 9px;
   }
 
   .stat-card > strong {
@@ -1158,7 +1158,10 @@ input {
   }
 
   .stat-card > small {
-    font-size: 7px;
+    align-items: flex-start;
+    font-size: 9px;
+    line-height: 1.3;
+    white-space: normal;
   }
 
   .queue-panel {
@@ -1188,7 +1191,7 @@ input {
   }
 
   .floating-note small {
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .features-section {

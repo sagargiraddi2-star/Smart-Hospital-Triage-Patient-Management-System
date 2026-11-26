@@ -115,3 +115,23 @@
 .reassessment-settings {
   margin-top: 28px;
 }
+
+/* Responsive layout (Phase 8) */
+
+@media (max-width: 650px) {
+  .reassessment-notice {
+    padding: 14px 16px;
+  }
+
+  .reassessment-action-form {
+    max-width: none;
+  }
+
+  .reassessment-note {
+    min-width: 0;
+  }
+
+  .reassessment-note-cell {
+    min-width: 200px;
+  }
+}

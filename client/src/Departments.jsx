@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import './Queues.css';
 import './Departments.css';
 import { useAuth } from './authContext.js';
+import BackToDashboard from './BackToDashboard.jsx';
 
 const API_URL = 'http://localhost:5000/api/departments';
 
@@ -177,9 +178,9 @@ function Departments() {
 
   return (
     <div className="queues-page">
-      <Link to="/dashboard" className="queue-back-button">
-        ← Back to Dashboard
-      </Link>
+      <div className="triora-back-row">
+        <BackToDashboard />
+      </div>
 
       <header className="queues-header">
         <div>

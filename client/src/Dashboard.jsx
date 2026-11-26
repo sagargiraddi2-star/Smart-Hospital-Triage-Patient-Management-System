@@ -237,55 +237,55 @@ function Dashboard() {
         <nav className="sidebar-navigation">
 
           <Link to="/dashboard" className="sidebar-link active">
-            <span className="sidebar-icon">▦</span>
+            <span className="sidebar-icon" aria-hidden="true">▦</span>
             <span>Overview</span>
           </Link>
 
           {auth.can('patients.view') && (
             <Link to="/patients" className="sidebar-link">
-              <span className="sidebar-icon">♙</span>
+              <span className="sidebar-icon" aria-hidden="true">♙</span>
               <span>Patients</span>
             </Link>
           )}
 
           {auth.can('queues.view') && (
             <Link to="/queues" className="sidebar-link">
-              <span className="sidebar-icon">☷</span>
-              <span>Normal Queue</span>
+              <span className="sidebar-icon" aria-hidden="true">☷</span>
+              <span>Normal queue</span>
             </Link>
           )}
 
           {auth.can('queues.view') && (
             <Link to="/queues/emergency" className="sidebar-link">
-              <span className="sidebar-icon">✚</span>
-              <span>Emergency Queue</span>
+              <span className="sidebar-icon" aria-hidden="true">✚</span>
+              <span>Emergency queue</span>
             </Link>
           )}
 
           {auth.can('queues.view') && (
             <Link to="/visit-history" className="sidebar-link">
-              <span className="sidebar-icon">◷</span>
-              <span>Visit History</span>
+              <span className="sidebar-icon" aria-hidden="true">◷</span>
+              <span>Visit history</span>
             </Link>
           )}
 
           {auth.can('departments.view') && (
             <Link to="/departments" className="sidebar-link">
-              <span className="sidebar-icon">▤</span>
+              <span className="sidebar-icon" aria-hidden="true">▤</span>
               <span>Departments</span>
             </Link>
           )}
 
           {auth.can('reassessments.view') && (
             <Link to="/reassessments" className="sidebar-link">
-              <span className="sidebar-icon">♧</span>
+              <span className="sidebar-icon" aria-hidden="true">♧</span>
               <span>Reassessment alerts</span>
             </Link>
           )}
 
           {auth.can('users.manage') && (
             <Link to="/users" className="sidebar-link">
-              <span className="sidebar-icon">⚙</span>
+              <span className="sidebar-icon" aria-hidden="true">⚙</span>
               <span>User management</span>
             </Link>
           )}
@@ -306,7 +306,7 @@ function Dashboard() {
             className="dashboard-logout"
             onClick={handleLogout}
           >
-            <span>↪</span>
+            <span aria-hidden="true">↪</span>
             Sign out
           </button>
 

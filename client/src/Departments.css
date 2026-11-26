@@ -32,8 +32,8 @@
 }
 
 .department-input:focus {
-  border-color: #2563eb;
-  outline: 2px solid #dbeafe;
+  border-color: var(--triora-teal);
+  outline: 2px solid var(--triora-teal-soft);
 }
 
 .department-visually-hidden {

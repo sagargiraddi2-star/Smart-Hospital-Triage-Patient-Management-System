@@ -5,28 +5,12 @@
 
 .queues-page {
   width: 100%;
+  max-width: 1450px;
   min-height: 100vh;
-  padding: 32px;
+  margin: 0 auto;
+  padding: 38px 38px 55px;
   color: #202b3c;
-  background: #f5f7fb;
-}
-
-/* Back to dashboard */
-
-.queue-back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 25px;
-  color: #475569;
-  font-size: 14px;
-  font-weight: 650;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.queue-back-button:hover {
-  color: #2563eb;
+  background: var(--triora-page-bg);
 }
 
 /* Header */
@@ -41,22 +25,24 @@
 
 .queues-eyebrow {
   margin: 0 0 9px;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
+  color: var(--triora-teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
 }
 
 .queues-header h1 {
   margin: 0;
-  color: #17243a;
+  color: var(--triora-heading);
+  font-family: var(--triora-font-heading);
   font-size: 32px;
-  font-weight: 750;
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 
 .queues-description {
   margin: 10px 0 0;
-  color: #64748b;
+  color: var(--triora-text-muted);
   font-size: 15px;
   line-height: 1.6;
 }
@@ -67,7 +53,7 @@
   justify-content: center;
   padding: 12px 19px;
   border-radius: 9px;
-  background: #2563eb;
+  background: var(--triora-teal);
   color: #ffffff;
   font-size: 14px;
   font-weight: 650;
@@ -77,7 +63,7 @@
 }
 
 .queues-add-button:hover {
-  background: #1d4ed8;
+  background: var(--triora-teal-hover);
 }
 
 /* Statistics */
@@ -94,8 +80,8 @@
   flex-direction: column;
   gap: 13px;
   padding: 22px;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
 }
@@ -107,9 +93,10 @@
 }
 
 .queue-stat-card strong {
-  color: #17243a;
+  color: #203d51;
+  font-family: var(--triora-font-heading);
   font-size: 30px;
-  font-weight: 750;
+  font-weight: 800;
 }
 
 /* Department filter */
@@ -117,17 +104,18 @@
 .queue-filter-section {
   margin-bottom: 26px;
   padding: 22px 24px;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
 }
 
 .queue-filter-heading h2 {
   margin: 0;
-  color: #17243a;
+  color: #29465a;
+  font-family: var(--triora-font-heading);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .queue-filter-heading p {
@@ -156,14 +144,14 @@
 }
 
 .queue-filter-button:hover {
-  border-color: #93b4f5;
-  color: #2563eb;
-  background: #f8faff;
+  border-color: #cce6df;
+  color: var(--triora-teal);
+  background: var(--triora-teal-tint);
 }
 
 .queue-filter-button.active {
-  border-color: #2563eb;
-  background: #2563eb;
+  border-color: var(--triora-teal);
+  background: var(--triora-teal);
   color: #ffffff;
 }
 
@@ -171,8 +159,8 @@
 
 .queue-table-section {
   overflow: hidden;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
 }
@@ -188,9 +176,10 @@
 
 .queue-section-header h2 {
   margin: 0;
-  color: #17243a;
+  color: #29465a;
+  font-family: var(--triora-font-heading);
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .queue-section-header p {
@@ -202,8 +191,8 @@
 .queue-live-label {
   padding: 7px 12px;
   border-radius: 20px;
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--triora-teal-soft);
+  color: var(--triora-teal);
   font-size: 14px;
   font-weight: 650;
   white-space: nowrap;
@@ -224,8 +213,8 @@
 
 .queue-table th {
   padding: 16px 18px;
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--triora-page-bg);
+  color: #65798a;
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
@@ -330,7 +319,7 @@
 /* View patient link */
 
 .queue-view-link {
-  color: #2563eb;
+  color: var(--triora-teal);
   font-size: 14px;
   font-weight: 650;
   text-decoration: none;
@@ -338,7 +327,7 @@
 }
 
 .queue-view-link:hover {
-  color: #1d4ed8;
+  color: var(--triora-teal-hover);
   text-decoration: underline;
 }
 
@@ -369,7 +358,7 @@
 
 @media (max-width: 650px) {
   .queues-page {
-    padding: 20px 14px;
+    padding: 20px 16px 40px;
   }
 
   .queues-header {
@@ -485,7 +474,7 @@
 }
 
 .priority-select:focus-visible {
-  outline: 2px solid #1d4ed8;
+  outline: 2px solid var(--triora-focus);
   outline-offset: 2px;
 }
 

@@ -1,0 +1,83 @@
+/* =========================================
+   TRIORA SHARED THEME (Phase 8)
+
+   Every value here is copied from the existing Dashboard.css (and the
+   teal buttons in Patients.css). Nothing new is invented: this file only
+   gives those values one shared home so the staff pages can reuse them.
+========================================= */
+
+:root {
+  /* Brand teal (Dashboard active link, eyebrow, avatar; Patients button) */
+  --triora-teal: #138f81;
+  --triora-teal-hover: #107b70;
+  --triora-teal-soft: #eaf7f3;
+  --triora-teal-tint: #f0f8f5;
+
+  /* Text (Dashboard headings, body copy and muted labels) */
+  --triora-heading: #1b364b;
+  --triora-text: #152b40;
+  --triora-text-muted: #7b8c99;
+  --triora-text-soft: #718392;
+
+  /* Surfaces and borders (Dashboard page, cards and panels) */
+  --triora-page-bg: #f7f9fb;
+  --triora-surface: #ffffff;
+  --triora-border: #e5ebef;
+  --triora-card-radius: 10px;
+
+  /* Focus outline (index.css) */
+  --triora-focus: #54b9ad;
+
+  /* Fonts (Dashboard) */
+  --triora-font-heading: 'Manrope', sans-serif;
+  --triora-font-body: 'DM Sans', sans-serif;
+}
+
+/* Standard "Back to Dashboard" button used on every staff page.
+   Same look as the existing teal-hover back button on the Patients page. */
+
+.triora-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px;
+  border: 1px solid #dce5ea;
+  border-radius: 8px;
+  background: var(--triora-surface);
+  color: #526779;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.triora-back-link:hover {
+  color: var(--triora-teal);
+  border-color: var(--triora-teal);
+  background: #f5fbfa;
+}
+
+.triora-back-link span {
+  font-size: 19px;
+  line-height: 1;
+}
+
+/* Row that holds the back button(s) at the top of a staff page */
+
+.triora-back-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+@media (max-width: 650px) {
+  .triora-back-row {
+    margin-bottom: 20px;
+  }
+}

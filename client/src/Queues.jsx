@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Queues.css';
 import { useAuth } from './authContext.js';
+import BackToDashboard from './BackToDashboard.jsx';
 
 const API_URL = 'http://localhost:5000/api/queues';
 const DEPARTMENTS_URL = 'http://localhost:5000/api/departments';
@@ -277,7 +278,7 @@ function Queues() {
       { status: nextStatus },
       nextStatus === 'in_progress'
         ? 'Consultation started. Waiting time has been recorded.'
-        : 'Visit marked as completed and moved to Visit History.'
+        : 'Visit marked as completed and moved to Visit history.'
     );
   }
 
@@ -366,9 +367,9 @@ function Queues() {
     <div className="queues-page">
 
       {/* Back to dashboard */}
-      <Link to="/dashboard" className="queue-back-button">
-        ← Back to Dashboard
-      </Link>
+      <div className="triora-back-row">
+        <BackToDashboard />
+      </div>
 
       {/* Page heading */}
       <header className="queues-header">
@@ -379,8 +380,8 @@ function Queues() {
 
           <h1>
             {isEmergencyQueue
-              ? 'Emergency Queue'
-              : 'Normal Queue'}
+              ? 'Emergency queue'
+              : 'Normal queue'}
           </h1>
 
           <p className="queues-description">
@@ -391,7 +392,7 @@ function Queues() {
         </div>
 
         <Link to="/patients" className="queues-add-button">
-          + Register Patient
+          + Register patient
         </Link>
       </header>
 

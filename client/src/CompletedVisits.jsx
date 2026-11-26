@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './CompletedVisits.css';
+import BackToDashboard from './BackToDashboard.jsx';
 
 function CompletedVisits() {
   const [visits, setVisits] = useState([]);
@@ -76,24 +77,24 @@ function CompletedVisits() {
 
   return (
     <div className="completed-visits-page">
+      <div className="triora-back-row">
+        <BackToDashboard />
+      </div>
+
       <div className="completed-visits-header">
         <div>
-          <p className="completed-visits-eyebrow">PATIENT MANAGEMENT</p>
-          <h1>Completed Visits</h1>
+          <p className="completed-visits-eyebrow">HOSPITAL OPERATIONS</p>
+          <h1>Visit history</h1>
           <p className="completed-visits-description">
             View the history of patient visits that have been completed.
           </p>
         </div>
-
-        <Link to="/dashboard" className="completed-visits-back">
-          Back to Dashboard
-        </Link>
       </div>
 
       <div className="completed-visits-summary">
         <div>
           <span className="completed-visits-summary-label">
-            Total Completed Visits
+            Total completed visits
           </span>
           <strong>{visits.length}</strong>
         </div>
@@ -102,7 +103,7 @@ function CompletedVisits() {
       <section className="completed-visits-section">
         <div className="completed-visits-section-header">
           <div>
-            <h2>Visit History</h2>
+            <h2>Completed visits</h2>
             <p>Previously completed patient visits</p>
           </div>
         </div>

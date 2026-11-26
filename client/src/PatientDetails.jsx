@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import './PatientDetails.css';
 import { useAuth } from './authContext.js';
 import SimulatedAiPanel from './SimulatedAiPanel.jsx';
+import BackToDashboard from './BackToDashboard.jsx';
 import {
   EMPTY_AI_STATE,
   formatPriorityLabel,
@@ -361,9 +362,13 @@ function PatientDetails() {
         <div className="patient-details-message error-message">
           <h2>Unable to load patient</h2>
           <p>{error}</p>
-          <Link to="/patients" className="details-back-link">
-            Back to patient records
-          </Link>
+          <div className="triora-back-row">
+            <BackToDashboard />
+            <Link to="/patients" className="triora-back-link">
+              <span aria-hidden="true">←</span>
+              Back to patient records
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -377,9 +382,13 @@ function PatientDetails() {
     <main className="patient-details-page">
       <header className="patient-details-header">
         <div>
-          <Link to="/patients" className="details-back-link">
-            ← Back to patient records
-          </Link>
+          <div className="triora-back-row">
+            <BackToDashboard />
+            <Link to="/patients" className="triora-back-link">
+              <span aria-hidden="true">←</span>
+              Back to patient records
+            </Link>
+          </div>
 
           <span className="details-eyebrow">HOSPITAL WORKSPACE</span>
 

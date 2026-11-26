@@ -4,6 +4,7 @@ import './Queues.css';
 import './Departments.css';
 import './Reassessments.css';
 import { useAuth } from './authContext.js';
+import BackToDashboard from './BackToDashboard.jsx';
 
 const API_URL = 'http://localhost:5000/api/reassessments';
 const REFRESH_INTERVAL_MS = 60 * 1000;
@@ -246,14 +247,14 @@ function Reassessments() {
 
   return (
     <div className="queues-page">
-      <Link to="/dashboard" className="queue-back-button">
-        ← Back to Dashboard
-      </Link>
+      <div className="triora-back-row">
+        <BackToDashboard />
+      </div>
 
       <header className="queues-header">
         <div>
           <p className="queues-eyebrow">CLINICAL WORKSPACE</p>
-          <h1>Reassessment Alerts</h1>
+          <h1>Reassessment alerts</h1>
           <p className="queues-description">
             Waiting patients whose reassessment is approaching, due or
             overdue, based on the hospital&apos;s configured intervals.

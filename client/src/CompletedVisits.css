@@ -1,7 +1,9 @@
 
 .completed-visits-page {
-  padding: 32px;
   width: 100%;
+  max-width: 1450px;
+  margin: 0 auto;
+  padding: 38px 38px 55px;
   color: #1e293b;
 }
 
@@ -14,41 +16,26 @@
 }
 
 .completed-visits-eyebrow {
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  margin: 0 0 10px;
+  color: var(--triora-teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  margin: 0 0 9px;
 }
 
 .completed-visits-header h1 {
-  font-size: 30px;
-  font-weight: 700;
   margin: 0;
-  color: #172554;
+  color: var(--triora-heading);
+  font-family: var(--triora-font-heading);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 
 .completed-visits-description {
-  color: #64748b;
+  color: var(--triora-text-muted);
   font-size: 15px;
   margin: 10px 0 0;
-}
-
-.completed-visits-back {
-  display: inline-block;
-  padding: 11px 17px;
-  border: 1px solid #dbe3ee;
-  border-radius: 8px;
-  color: #334155;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background 0.2s ease;
-}
-
-.completed-visits-back:hover {
-  background: #f1f5f9;
 }
 
 .completed-visits-summary {
@@ -60,8 +47,8 @@
   min-width: 220px;
   padding: 20px 24px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
 }
 
 .completed-visits-summary-label {
@@ -74,15 +61,16 @@
 
 .completed-visits-summary strong {
   display: block;
-  color: #172554;
-  font-size: 28px;
-  font-weight: 700;
+  color: #203d51;
+  font-family: var(--triora-font-heading);
+  font-size: 30px;
+  font-weight: 800;
 }
 
 .completed-visits-section {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
   overflow: hidden;
 }
 
@@ -92,9 +80,10 @@
 }
 
 .completed-visits-section-header h2 {
-  color: #172554;
+  color: #29465a;
+  font-family: var(--triora-font-heading);
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
 }
 
@@ -117,8 +106,8 @@
 }
 
 .completed-visits-table th {
-  background: #f8fafc;
-  color: #475569;
+  background: var(--triora-page-bg);
+  color: #65798a;
   font-size: 14px;
   font-weight: 700;
   padding: 16px;
@@ -150,8 +139,8 @@
 .visit-type-badge,
 .visit-priority-badge {
   display: inline-block;
-  padding: 6px 10px;
-  border-radius: 20px;
+  padding: 7px 10px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -192,13 +181,14 @@
 }
 
 .completed-visits-view-link {
-  color: #2563eb;
+  color: var(--triora-teal);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
 }
 
 .completed-visits-view-link:hover {
+  color: var(--triora-teal-hover);
   text-decoration: underline;
 }
 
@@ -215,7 +205,7 @@
 
 @media (max-width: 768px) {
   .completed-visits-page {
-    padding: 20px;
+    padding: 20px 16px 40px;
   }
 
   .completed-visits-header {
@@ -223,7 +213,7 @@
   }
 
   .completed-visits-header h1 {
-    font-size: 26px;
+    font-size: 27px;
   }
 }
 

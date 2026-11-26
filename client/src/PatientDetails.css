@@ -1,8 +1,9 @@
 
 .patient-details-page {
-  width: min(1400px, calc(100% - 48px));
+  width: 100%;
+  max-width: 1450px;
   margin: 0 auto;
-  padding: 36px 0 60px;
+  padding: 38px 38px 55px;
   color: #1d2939;
 }
 
@@ -13,34 +14,22 @@
   margin-bottom: 30px;
 }
 
-.details-back-link {
-  display: inline-block;
-  margin-bottom: 24px;
-  color: #526579;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.details-back-link:hover {
-  color: #167c80;
-}
-
 .details-eyebrow,
 .details-section-label {
   display: block;
-  color: #168184;
+  color: var(--triora-teal);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 1.3px;
 }
 
 .patient-details-header h1 {
   margin: 10px 0 8px;
-  color: #172b3a;
+  color: var(--triora-heading);
+  font-family: var(--triora-font-heading);
   font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.8px;
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 
 .patient-details-header p {
@@ -56,8 +45,8 @@
 .details-card {
   margin-bottom: 24px;
   padding: 30px;
-  border: 1px solid #e7edf0;
-  border-radius: 16px;
+  border: 1px solid var(--triora-border);
+  border-radius: var(--triora-card-radius);
   background: #ffffff;
   box-shadow: 0 5px 20px rgba(25, 45, 65, 0.04);
 }
@@ -72,9 +61,10 @@
 
 .details-section-heading h2 {
   margin: 8px 0 0;
-  color: #1d3445;
+  color: #29465a;
+  font-family: var(--triora-font-heading);
   font-size: 23px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .details-info-grid {
@@ -450,8 +440,7 @@
 
 @media (max-width: 560px) {
   .patient-details-page {
-    width: calc(100% - 32px);
-    padding-top: 24px;
+    padding: 20px 16px 40px;
   }
 
   .details-card {

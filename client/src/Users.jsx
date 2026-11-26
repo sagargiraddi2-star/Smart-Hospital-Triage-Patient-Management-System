@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ROLE_LABELS, useAuth } from './authContext.js';
+import BackToDashboard from './BackToDashboard.jsx';
 import './Queues.css';
 import './Departments.css';
 
@@ -117,9 +117,9 @@ function Users() {
 
   return (
     <div className="queues-page">
-      <Link to="/dashboard" className="queue-back-button">
-        ← Back to Dashboard
-      </Link>
+      <div className="triora-back-row">
+        <BackToDashboard />
+      </div>
 
       <header className="queues-header">
         <div>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Patients.css';
+import BackToDashboard from './BackToDashboard.jsx';
 
 function formatDateOnly(value) {
   if (!value) return '—';
@@ -221,14 +222,9 @@ function Patients() {
     <div className="patients-page">
       <header className="patients-page-header">
         <div className="patients-header-content">
-          <button
-            type="button"
-            className="patients-back-button"
-            onClick={() => navigate('/dashboard')}
-          >
-            <span aria-hidden="true">←</span>
-            Back to dashboard
-          </button>
+          <div className="triora-back-row">
+            <BackToDashboard />
+          </div>
 
           <span className="patients-eyebrow">HOSPITAL WORKSPACE</span>
 
