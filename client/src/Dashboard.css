@@ -758,3 +758,24 @@
     min-height: 68px;
   }
 }
+
+/* REASSESSMENT ALERTS ON THE DASHBOARD */
+
+.dashboard-reassessment-alert {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-reassessment-alert:hover strong {
+  color: #168f82;
+}
+
+.dashboard-alert-icon.reassessment-overdue {
+  color: #b84a4a;
+  background: #fdecec;
+}
+
+.dashboard-alert-icon.reassessment-due_soon {
+  color: #a16207;
+  background: #fef6e0;
+}

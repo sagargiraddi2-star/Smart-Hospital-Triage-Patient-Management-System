@@ -480,3 +480,23 @@
     flex-direction: column;
   }
 }
+
+/* Reassessment labels (Phase 5) */
+
+.assessment-kind {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: #168f82;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.reassessment-banner {
+  margin-bottom: 18px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  line-height: 1.6;
+}

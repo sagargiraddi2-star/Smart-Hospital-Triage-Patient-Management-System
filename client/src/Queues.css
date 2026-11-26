@@ -524,3 +524,32 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* Reassessment alert badge (Phase 5) */
+
+.queue-reassessment-badge {
+  display: block;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.queue-reassessment-badge.overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.queue-reassessment-badge.due {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.queue-reassessment-badge.due_soon {
+  background: #fef3c7;
+  color: #a16207;
+}

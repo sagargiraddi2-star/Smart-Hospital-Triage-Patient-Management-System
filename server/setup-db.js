@@ -105,6 +105,10 @@ async function setupDatabase() {
     //    Additive and safe to run more than once.
     await runPhase4Migration();
 
+    // 9. Phase 5 migration: reassessment settings and staff decisions.
+    //    Additive and safe to run more than once.
+    await runPhase5Migration();
+
     console.log('Database setup completed successfully!');
     console.log(
       'Users, patients, patient_visits and triage_assessments tables are ready.'
@@ -254,6 +258,95 @@ async function runPhase4Migration() {
 
     await client.query('COMMIT');
     console.log('Phase 4 department migration applied.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function runPhase5Migration() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // One row per priority. Intervals are NOT clinically defined by the
+    // software: every row starts empty and disabled until authorised staff
+    // enter values approved by qualified clinicians.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reassessment_settings (
+        priority VARCHAR(20) PRIMARY KEY
+          CHECK (priority IN ('critical', 'high', 'medium', 'low')),
+        interval_minutes INTEGER
+          CHECK (interval_minutes > 0),
+        due_soon_minutes INTEGER
+          CHECK (due_soon_minutes > 0),
+        grace_minutes INTEGER
+          CHECK (grace_minutes >= 0),
+        is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        approval_note TEXT,
+        updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        updated_at TIMESTAMPTZ,
+        CHECK (
+          NOT is_enabled
+          OR (
+            interval_minutes IS NOT NULL
+            AND approval_note IS NOT NULL
+            AND LENGTH(TRIM(approval_note)) > 0
+          )
+        )
+      );
+    `);
+
+    await client.query(`
+      INSERT INTO reassessment_settings (priority)
+      VALUES ('critical'), ('high'), ('medium'), ('low')
+      ON CONFLICT (priority) DO NOTHING;
+    `);
+
+    // Every change to the settings is kept for audit purposes.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reassessment_setting_changes (
+        id SERIAL PRIMARY KEY,
+        priority VARCHAR(20) NOT NULL
+          REFERENCES reassessment_settings(priority),
+        interval_minutes INTEGER,
+        due_soon_minutes INTEGER,
+        grace_minutes INTEGER,
+        is_enabled BOOLEAN NOT NULL,
+        approval_note TEXT,
+        changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // Staff decisions on reassessment alerts. Rows are only ever added.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reassessment_decisions (
+        id SERIAL PRIMARY KEY,
+        visit_id INTEGER NOT NULL
+          REFERENCES patient_visits(id) ON DELETE CASCADE,
+        decision VARCHAR(20) NOT NULL
+          CHECK (decision IN ('not_required', 'deferred')),
+        reason TEXT,
+        defer_until TIMESTAMPTZ,
+        due_at TIMESTAMPTZ,
+        priority VARCHAR(20),
+        decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK ((decision = 'deferred') = (defer_until IS NOT NULL))
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_reassessment_decisions_visit
+      ON reassessment_decisions (visit_id, created_at DESC);
+    `);
+
+    await client.query('COMMIT');
+    console.log('Phase 5 reassessment migration applied.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

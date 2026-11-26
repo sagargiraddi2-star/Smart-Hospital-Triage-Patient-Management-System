@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import './PatientDetails.css';
 
 function formatDate(value) {
@@ -56,6 +56,13 @@ const initialForm = {
 function PatientDetails() {
   const { id } = useParams();
 
+  // Opened from a reassessment alert: ?visit=<visitId>&reassess=1
+  const [searchParams] = useSearchParams();
+  const requestedVisitId = searchParams.get('visit');
+  const isReassessmentRequest = searchParams.get('reassess') === '1';
+
+  const [decisions, setDecisions] = useState([]);
+
   const [patient, setPatient] = useState(null);
   const [visits, setVisits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,7 +108,11 @@ function PatientDetails() {
         setVisits(data.visits || []);
 
         if (data.visits && data.visits.length > 0) {
-          setSelectedVisitId(String(data.visits[0].id));
+          const requestedVisit = data.visits.find(
+            (visit) => String(visit.id) === requestedVisitId
+          );
+
+          setSelectedVisitId(String((requestedVisit || data.visits[0]).id));
         } else {
           setSelectedVisitId('');
         }
@@ -113,7 +124,16 @@ function PatientDetails() {
     }
 
     loadPatientDetails();
-  }, [id]);
+  }, [id, requestedVisitId]);
+
+  // When opened from a reassessment alert, bring the form into view.
+  useEffect(() => {
+    if (!isLoading && isReassessmentRequest) {
+      document
+        .getElementById('assessment-form-section')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isLoading, isReassessmentRequest]);
 
   // Load assessment history for the selected visit.
   useEffect(() => {
@@ -148,6 +168,21 @@ function PatientDetails() {
         }
 
         setAssessments(data.assessments || []);
+
+        // Reassessment decisions (not required / remind later) are
+        // supplementary; failing to load them does not hide assessments.
+        try {
+          const decisionResponse = await fetch(
+            `http://localhost:5000/api/reassessments/${encodeURIComponent(selectedVisitId)}/history`,
+            { credentials: 'include' }
+          );
+          const decisionData = decisionResponse.ok
+            ? await decisionResponse.json()
+            : { decisions: [] };
+          setDecisions(decisionData.decisions || []);
+        } catch {
+          setDecisions([]);
+        }
       } catch (err) {
         setAssessmentError(
           err.message || 'Could not load assessment history.'
@@ -215,6 +250,13 @@ function PatientDetails() {
       setIsSaving(false);
     }
   }
+
+  // A visit that already has a full assessment is being REassessed.
+  // Priority changes made from the queue are not full assessments.
+  const isReassessment = assessments.some(
+    (assessment) => assessment.entry_type === 'assessment'
+  );
+  const currentPriority = assessments[0]?.triage_priority;
 
   if (isLoading) {
     return (
@@ -380,16 +422,27 @@ function PatientDetails() {
       </section>
 
       {/* Triage assessment form */}
-      <section className="details-card">
+      <section className="details-card" id="assessment-form-section">
         <div className="details-section-heading">
           <div>
             <span className="details-section-label">CLINICAL WORKSPACE</span>
-            <h2>New triage assessment</h2>
+            <h2>{isReassessment ? 'Reassessment' : 'New triage assessment'}</h2>
             <p className="triage-section-description">
-              Record observations for a specific patient visit.
+              {isReassessment
+                ? 'This visit already has an assessment. Saving records a reassessment and restarts the reassessment clock.'
+                : 'Record observations for a specific patient visit.'}
             </p>
           </div>
         </div>
+
+        {isReassessment && currentPriority && (
+          <div className="triage-feedback reassessment-banner">
+            Current priority: <strong>{currentPriority}</strong>. The priority
+            field below is intentionally blank: select the priority that
+            reflects this reassessment. Reassessment never changes the
+            priority automatically.
+          </div>
+        )}
 
         {visits.length === 0 ? (
           <div className="details-empty-state">
@@ -672,6 +725,11 @@ function PatientDetails() {
                   >
                     <div className="assessment-item-heading">
                       <div>
+                        <span className="assessment-kind">
+                          {Number(assessment.assessment_number) === 1
+                            ? 'Initial assessment'
+                            : `Reassessment #${Number(assessment.assessment_number) - 1}`}
+                        </span>
                         <h3>{assessment.chief_complaint}</h3>
                         <p>{formatDateTime(assessment.created_at)}</p>
                       </div>
@@ -732,6 +790,59 @@ function PatientDetails() {
           </>
         )}
       </section>
+
+      {/* Reassessment decisions */}
+      {visits.length > 0 && (
+        <section className="details-card">
+          <div className="details-section-heading">
+            <div>
+              <span className="details-section-label">CLINICAL RECORDS</span>
+              <h2>Reassessment decisions</h2>
+              <p className="triage-section-description">
+                "Not required" and "Remind later" decisions for the selected visit.
+              </p>
+            </div>
+
+            <span className="visit-count">
+              {decisions.length} {decisions.length === 1 ? 'decision' : 'decisions'}
+            </span>
+          </div>
+
+          {decisions.length === 0 ? (
+            <div className="details-empty-state">
+              No reassessment decisions have been recorded for this visit.
+            </div>
+          ) : (
+            <div className="assessment-list">
+              {decisions.map((decision) => (
+                <article className="assessment-item" key={decision.id}>
+                  <div className="assessment-item-heading">
+                    <div>
+                      <h3>
+                        {decision.decision === 'not_required'
+                          ? 'Reassessment not required'
+                          : `Reminder set for ${formatDateTime(decision.defer_until)}`}
+                      </h3>
+                      <p>{formatDateTime(decision.created_at)}</p>
+                    </div>
+                  </div>
+
+                  {decision.reason && (
+                    <p className="assessment-description">
+                      <strong>Reason:</strong> {decision.reason}
+                    </p>
+                  )}
+
+                  <p className="assessment-assessor">
+                    Recorded by: {decision.decided_by_name || 'Staff member'}
+                    {decision.priority && ` · priority at the time: ${decision.priority}`}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }

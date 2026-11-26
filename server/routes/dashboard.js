@@ -1,4 +1,10 @@
 const express = require('express');
+const {
+  isActiveAlert,
+  loadReassessmentStatus,
+  loadSettings,
+  summarise,
+} = require('../lib/reassessment');
 
 const router = express.Router();
 
@@ -41,7 +47,13 @@ router.get('/summary', requireAuth, async (req, res) => {
   const timezone = resolveTimezone(req.query.timezone);
 
   try {
-    const [statsResult, activityResult, workloadResult] = await Promise.all([
+    const [
+      statsResult,
+      activityResult,
+      workloadResult,
+      reassessmentRows,
+      reassessmentSettings,
+    ] = await Promise.all([
       // Counts use DISTINCT patient_id, so a patient with more than one
       // visit is only counted once. Visit counts are returned alongside.
       pool.query(
@@ -201,6 +213,10 @@ router.get('/summary', requireAuth, async (req, res) => {
           ORDER BY total DESC, LOWER(department) ASC;
         `
       ),
+
+      // Reassessment alerts (Phase 5), from the shared calculation.
+      loadReassessmentStatus(pool),
+      loadSettings(pool),
     ]);
 
     const stats = statsResult.rows[0];
@@ -221,6 +237,14 @@ router.get('/summary', requireAuth, async (req, res) => {
       },
       recentActivity: activityResult.rows,
       departmentWorkload: workloadResult.rows,
+      reassessment: {
+        configured: reassessmentSettings.some((setting) => setting.is_enabled),
+        counts: summarise(reassessmentRows),
+        // Most urgent active (not snoozed) alerts for the dashboard panel.
+        alerts: reassessmentRows
+          .filter((row) => isActiveAlert(row) && !row.is_snoozed)
+          .slice(0, 5),
+      },
     });
   } catch (error) {
     console.error('Could not load dashboard summary:', error.message);

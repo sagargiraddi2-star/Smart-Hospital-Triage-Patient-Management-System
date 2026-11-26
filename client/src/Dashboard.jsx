@@ -11,6 +11,12 @@ const STATUS_LABELS = {
   completed: 'Completed',
 };
 
+const REASSESSMENT_LABELS = {
+  overdue: 'Overdue',
+  due: 'Reassessment due',
+  due_soon: 'Due soon',
+};
+
 const ACTIVITY_LABELS = {
   registered: 'Registered',
   consultation_started: 'Consultation started',
@@ -221,6 +227,7 @@ function Dashboard() {
   const pendingNote = summaryError ? 'Unavailable' : 'Loading…';
   const recentActivity = summary?.recentActivity || [];
   const departmentWorkload = summary?.departmentWorkload || [];
+  const reassessment = summary?.reassessment;
   const busiestDepartmentTotal = Math.max(
     1,
     ...departmentWorkload.map((department) => department.total)
@@ -286,10 +293,10 @@ function Dashboard() {
             <span>Departments</span>
           </Link>
 
-          <a href="/dashboard#alerts" className="sidebar-link">
+          <Link to="/reassessments" className="sidebar-link">
             <span className="sidebar-icon">♧</span>
             <span>Reassessment alerts</span>
-          </a>
+          </Link>
 
         </nav>
 
@@ -660,20 +667,72 @@ function Dashboard() {
               </div>
             )}
 
-            <div className="dashboard-alert-item">
+            {reassessment && !reassessment.configured && (
+              <div className="dashboard-alert-item">
 
-              <span className="dashboard-alert-icon">◷</span>
+                <span className="dashboard-alert-icon">◷</span>
 
-              <div>
-                <strong>Reassessment alerts are not yet available</strong>
-                <p>
-                  Due and overdue reassessment alerts will appear here once
-                  reassessment intervals have been configured and approved
-                  by qualified clinical staff.
-                </p>
+                <div>
+                  <strong>Reassessment intervals have not been configured</strong>
+                  <p>
+                    No patient is labelled due or overdue until intervals
+                    approved by qualified clinical staff are entered on the{' '}
+                    <Link to="/reassessments">Reassessment alerts</Link> page.
+                  </p>
+                </div>
+
               </div>
+            )}
 
-            </div>
+            {reassessment && reassessment.configured && (
+              <div className="dashboard-alert-item">
+
+                <span className="dashboard-alert-icon">◷</span>
+
+                <div>
+                  <strong>
+                    {reassessment.counts.overdue} overdue · {reassessment.counts.due} due ·{' '}
+                    {reassessment.counts.due_soon} due soon
+                    {reassessment.counts.snoozed > 0 &&
+                      ` · ${reassessment.counts.snoozed} snoozed`}
+                  </strong>
+                  <p>
+                    Reassessment status of waiting patients.{' '}
+                    {reassessment.counts.not_configured > 0 &&
+                      `${reassessment.counts.not_configured} waiting ${
+                        reassessment.counts.not_configured === 1 ? 'patient has' : 'patients have'
+                      } a priority with no configured interval. `}
+                    <Link to="/reassessments">Open reassessment alerts →</Link>
+                  </p>
+                </div>
+
+              </div>
+            )}
+
+            {reassessment?.alerts.map((alert) => (
+              <Link
+                key={alert.visit_id}
+                to={`/patients/${alert.patient_id}?visit=${alert.visit_id}&reassess=1`}
+                className="dashboard-alert-item dashboard-reassessment-alert"
+              >
+                <span className={`dashboard-alert-icon reassessment-${alert.alert_state}`}>
+                  {alert.alert_state === 'due_soon' ? '◷' : '!'}
+                </span>
+
+                <div>
+                  <strong>
+                    {REASSESSMENT_LABELS[alert.alert_state]} · {alert.patient_number}{' '}
+                    {alert.full_name}
+                  </strong>
+                  <p>
+                    {alert.department || 'No department'} ·{' '}
+                    {alert.visit_type === 'emergency' ? 'Emergency' : 'Normal'} ·{' '}
+                    {formatPriority(alert.current_priority)} priority · due{' '}
+                    {formatActivityTime(alert.due_at)}
+                  </p>
+                </div>
+              </Link>
+            ))}
 
           </section>
 

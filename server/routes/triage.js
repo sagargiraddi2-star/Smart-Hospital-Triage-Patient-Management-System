@@ -198,7 +198,16 @@ router.get('/:visitId', requireAuth, async (req, res) => {
       `
         SELECT
           ta.*,
-          u.full_name AS assessed_by_name
+          u.full_name AS assessed_by_name,
+          -- 1 = initial assessment, 2+ = reassessments. Priority changes
+          -- made from the queue are not full assessments and get no number.
+          CASE
+            WHEN ta.entry_type = 'assessment' THEN
+              ROW_NUMBER() OVER (
+                PARTITION BY ta.entry_type
+                ORDER BY ta.created_at ASC, ta.id ASC
+              )
+          END AS assessment_number
         FROM triage_assessments ta
         LEFT JOIN users u ON ta.assessed_by = u.id
         WHERE ta.visit_id = $1

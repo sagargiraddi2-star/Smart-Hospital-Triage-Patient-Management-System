@@ -9,6 +9,7 @@ import PatientDetails from './PatientDetails.jsx';
 import Queues from './Queues';
 import CompletedVisits from './CompletedVisits.jsx';
 import Departments from './Departments.jsx';
+import Reassessments from './Reassessments.jsx';
 
 const features = [
   {
@@ -310,6 +311,7 @@ function App() {
       <Route path="/queues/emergency" element={<Queues />} />
       <Route path="/visit-history" element={<CompletedVisits />} />
       <Route path="/departments" element={<Departments />} />
+      <Route path="/reassessments" element={<Reassessments />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

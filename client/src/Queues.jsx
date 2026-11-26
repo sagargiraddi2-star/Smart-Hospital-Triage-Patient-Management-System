@@ -4,6 +4,13 @@ import './Queues.css';
 
 const API_URL = 'http://localhost:5000/api/queues';
 const DEPARTMENTS_URL = 'http://localhost:5000/api/departments';
+const REASSESSMENTS_URL = 'http://localhost:5000/api/reassessments';
+
+const REASSESSMENT_BADGES = {
+  overdue: 'Reassessment overdue',
+  due: 'Reassessment due',
+  due_soon: 'Reassessment due soon',
+};
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
 // How often the live waiting timer ticks and the queue reloads.
@@ -89,9 +96,12 @@ async function readJson(response, fallbackMessage) {
 
 // Load active visits and the configured active departments.
 async function requestQueues() {
-  const [queueResponse, departmentResponse] = await Promise.all([
+  const [queueResponse, departmentResponse, reassessmentResponse] = await Promise.all([
     fetch(API_URL, { credentials: 'include' }),
     fetch(`${DEPARTMENTS_URL}?status=active`, { credentials: 'include' }),
+    fetch(`${REASSESSMENTS_URL}?view=all`, { credentials: 'include' }).catch(
+      () => null
+    ),
   ]);
 
   const queueData = await readJson(
@@ -112,9 +122,29 @@ async function requestQueues() {
     console.error(error.message);
   }
 
+  // Reassessment alerts are optional for the queue: if they cannot be
+  // loaded the queue still works, just without alert badges.
+  const reassessmentByVisit = {};
+
+  try {
+    if (reassessmentResponse) {
+      const reassessmentData = await readJson(
+        reassessmentResponse,
+        'Could not load reassessment alerts.'
+      );
+
+      for (const row of reassessmentData.patients || []) {
+        reassessmentByVisit[row.visit_id] = row;
+      }
+    }
+  } catch (error) {
+    console.error(error.message);
+  }
+
   return {
     queueList: queueData.queues || [],
     departmentList,
+    reassessmentByVisit,
   };
 }
 
@@ -139,6 +169,7 @@ function Queues() {
 
   const [queues, setQueues] = useState([]);
   const [configuredDepartments, setConfiguredDepartments] = useState([]);
+  const [reassessmentByVisit, setReassessmentByVisit] = useState({});
   // 'All' or a department key from getDepartmentKey().
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -153,9 +184,10 @@ function Queues() {
     () =>
       requestQueues()
         .then(
-          ({ queueList, departmentList }) => {
+          ({ queueList, departmentList, reassessmentByVisit: alerts }) => {
             setQueues(queueList);
             setConfiguredDepartments(departmentList);
+            setReassessmentByVisit(alerts);
             setError('');
             setNow(Date.now());
           },
@@ -604,6 +636,19 @@ function Queues() {
                           ? 'In Progress'
                           : 'Waiting'}
                       </span>
+
+                      {patient.status === 'waiting' &&
+                        REASSESSMENT_BADGES[reassessmentByVisit[patient.visit_id]?.alert_state] && (
+                          <Link
+                            to={`/patients/${patient.patient_id}?visit=${patient.visit_id}&reassess=1`}
+                            className={`queue-reassessment-badge ${
+                              reassessmentByVisit[patient.visit_id].alert_state
+                            }`}
+                          >
+                            {REASSESSMENT_BADGES[reassessmentByVisit[patient.visit_id].alert_state]}
+                            {reassessmentByVisit[patient.visit_id].is_snoozed && ' (snoozed)'}
+                          </Link>
+                        )}
                     </td>
 
                     <td>
