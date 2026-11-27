@@ -69,7 +69,7 @@ function Patients() {
       setDepartmentsError('');
 
       const response = await fetch(
-        'http://localhost:5000/api/departments?status=active',
+        '/api/departments?status=active',
         { credentials: 'include' }
       );
 
@@ -116,7 +116,7 @@ function Patients() {
       setError('');
 
       const response = await fetch(
-        'http://localhost:5000/api/patients',
+        '/api/patients',
         { credentials: 'include' }
       );
 
@@ -157,7 +157,7 @@ function Patients() {
       setSuccess('');
 
       const response = await fetch(
-        'http://localhost:5000/api/patients',
+        '/api/patients',
         {
           method: 'POST',
           credentials: 'include',

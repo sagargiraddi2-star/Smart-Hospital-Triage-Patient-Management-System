@@ -104,7 +104,7 @@ function PatientDetails() {
         setError('');
 
         const response = await fetch(
-          `http://localhost:5000/api/patients/${encodeURIComponent(id)}`,
+          `/api/patients/${encodeURIComponent(id)}`,
           {
             credentials: 'include',
           }
@@ -176,7 +176,7 @@ function PatientDetails() {
         setAssessmentError('');
 
         const response = await fetch(
-          `http://localhost:5000/api/triage/${encodeURIComponent(selectedVisitId)}`,
+          `/api/triage/${encodeURIComponent(selectedVisitId)}`,
           {
             credentials: 'include',
           }
@@ -201,7 +201,7 @@ function PatientDetails() {
         // supplementary; failing to load them does not hide assessments.
         try {
           const decisionResponse = await fetch(
-            `http://localhost:5000/api/reassessments/${encodeURIComponent(selectedVisitId)}/history`,
+            `/api/reassessments/${encodeURIComponent(selectedVisitId)}/history`,
             { credentials: 'include' }
           );
           const decisionData = decisionResponse.ok
@@ -215,7 +215,7 @@ function PatientDetails() {
         // Simulated AI suggestion log (supplementary, like decisions).
         try {
           const aiResponse = await fetch(
-            `http://localhost:5000/api/ai-triage/visits/${encodeURIComponent(selectedVisitId)}/suggestions`,
+            `/api/ai-triage/visits/${encodeURIComponent(selectedVisitId)}/suggestions`,
             { credentials: 'include' }
           );
           const aiData = aiResponse.ok
@@ -270,7 +270,7 @@ function PatientDetails() {
     try {
       setIsSaving(true);
 
-      const response = await fetch('http://localhost:5000/api/triage', {
+      const response = await fetch('/api/triage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

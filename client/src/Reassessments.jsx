@@ -6,7 +6,7 @@ import './Reassessments.css';
 import { useAuth } from './authContext.js';
 import BackToDashboard from './BackToDashboard.jsx';
 
-const API_URL = 'http://localhost:5000/api/reassessments';
+const API_URL = '/api/reassessments';
 const REFRESH_INTERVAL_MS = 60 * 1000;
 const ACTIVE_STATES = ['due_soon', 'due', 'overdue'];
 

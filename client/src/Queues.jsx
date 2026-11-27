@@ -4,9 +4,9 @@ import './Queues.css';
 import { useAuth } from './authContext.js';
 import BackToDashboard from './BackToDashboard.jsx';
 
-const API_URL = 'http://localhost:5000/api/queues';
-const DEPARTMENTS_URL = 'http://localhost:5000/api/departments';
-const REASSESSMENTS_URL = 'http://localhost:5000/api/reassessments';
+const API_URL = '/api/queues';
+const DEPARTMENTS_URL = '/api/departments';
+const REASSESSMENTS_URL = '/api/reassessments';
 
 const REASSESSMENT_BADGES = {
   overdue: 'Reassessment overdue',

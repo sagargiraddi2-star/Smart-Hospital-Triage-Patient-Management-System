@@ -5,7 +5,7 @@ import './Departments.css';
 import { useAuth } from './authContext.js';
 import BackToDashboard from './BackToDashboard.jsx';
 
-const API_URL = 'http://localhost:5000/api/departments';
+const API_URL = '/api/departments';
 
 class UnauthorizedError extends Error {}
 

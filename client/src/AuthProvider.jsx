@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from './authContext.js';
 
-const ME_URL = 'http://localhost:5000/api/auth/me';
+const ME_URL = '/api/auth/me';
 
 // Loads the signed-in user and their permissions once, and again whenever
 // refresh() is called (after login) or signOut() clears it (after logout).

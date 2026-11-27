@@ -10,7 +10,7 @@ import {
 // Talks ONLY to TRIORA's own backend, which returns predefined fictional
 // responses. There is no external AI service and no usage cost.
 
-const API_URL = 'http://localhost:5000/api/ai-triage';
+const API_URL = '/api/ai-triage';
 
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 

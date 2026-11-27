@@ -13,7 +13,7 @@ function CompletedVisits() {
     async function fetchCompletedVisits() {
       try {
         const response = await fetch(
-          'http://localhost:5000/api/queues/completed',
+          '/api/queues/completed',
           { credentials: 'include' }
         );
 

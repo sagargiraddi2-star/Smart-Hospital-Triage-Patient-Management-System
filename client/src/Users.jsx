@@ -7,7 +7,7 @@ import './Departments.css';
 // Administrator user management (Phase 7). Every change is enforced and
 // audit-logged by the backend (/api/users).
 
-const API_URL = 'http://localhost:5000/api/users';
+const API_URL = '/api/users';
 const ROLES = ['doctor', 'nurse', 'management', 'admin'];
 
 const STATUS_LABELS = {

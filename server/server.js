@@ -1,6 +1,8 @@
 
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -9,6 +11,13 @@ const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Built frontend (client/dist), served by this backend in production so the
+// website and the API share one address. Local development keeps using
+// `npm run dev` (Vite) for the frontend.
+const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
+const CLIENT_INDEX = path.join(CLIENT_DIST, 'index.html');
 
 if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET) {
   console.error('Missing DATABASE_URL or SESSION_SECRET in server/.env');
@@ -30,24 +39,97 @@ app.use(
   })
 );
 
+// In production the app runs behind the host's HTTPS proxy (Render). Trusting
+// that one proxy lets Express see the real HTTPS connection (needed for
+// secure session cookies) and the visitor's real IP address (used by the
+// login limiter). Not enabled locally, where there is no proxy.
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
 // Basic security headers (Phase 7), without extra packages.
 app.disable('x-powered-by');
 
+// Web pages may load only this site's own files plus Google Fonts (used by
+// the existing styles). API responses keep the strictest policy.
+const PAGE_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 app.use((req, res, next) => {
+  const isApi = req.path === '/api' || req.path.startsWith('/api/');
+
   res.set({
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',
-    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy': isApi
+      ? "default-src 'none'; frame-ancestors 'none'"
+      : PAGE_CSP,
   });
 
   // API responses contain patient data: never store them in caches.
-  if (req.path.startsWith('/api/')) {
+  if (isApi) {
     res.set('Cache-Control', 'no-store');
   }
 
   next();
 });
+
+// Health check for the hosting platform. It does not use the database, so
+// frequent checks do not wake the (auto-pausing) Neon database.
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Production: serve the built frontend before the session middleware, so
+// loading pages and static files never touches the database.
+if (isProduction) {
+  if (!fs.existsSync(CLIENT_INDEX)) {
+    console.error('client/dist is missing. Run "npm run build" in client/ first.');
+    process.exit(1);
+  }
+
+  app.use(
+    express.static(CLIENT_DIST, {
+      index: false,
+      setHeaders(res, filePath) {
+        // Vite gives built assets unique (hashed) names, so they can be
+        // cached for a long time; index.html must always be re-checked.
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    })
+  );
+
+  // Page routes such as /dashboard or /patients/5 are handled by React, so
+  // any non-API GET request receives index.html (also on page refresh).
+  // Missing files (paths with an extension, e.g. an old /assets/x.js) get a
+  // plain 404 instead of the page.
+  app.use((req, res, next) => {
+    const isApi = req.path === '/api' || req.path.startsWith('/api/');
+
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || isApi) {
+      return next();
+    }
+
+    if (path.extname(req.path)) {
+      return res.status(404).type('text/plain').send('Not found');
+    }
+
+    res.set('Cache-Control', 'no-cache');
+    return res.sendFile(CLIENT_INDEX);
+  });
+}
 
 app.use(express.json());
 
@@ -76,12 +158,15 @@ app.use(
   })
 );
 
-// Welcome/test route.
-app.get('/', (req, res) => {
-  res.json({
-    message: 'TRIORA backend is running!',
+// Welcome/test route (local development only; in production "/" is the
+// website itself).
+if (!isProduction) {
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'TRIORA backend is running!',
+    });
   });
-});
+}
 
 // Registration and authentication routes.
 app.use('/api/auth', require('./routes/auth'));

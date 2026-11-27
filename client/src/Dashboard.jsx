@@ -114,7 +114,7 @@ function Dashboard() {
       try {
         const timezone = encodeURIComponent(getBrowserTimezone());
         const response = await fetch(
-          `http://localhost:5000/api/dashboard/summary?timezone=${timezone}`,
+          `/api/dashboard/summary?timezone=${timezone}`,
           { credentials: 'include' }
         );
 
@@ -152,7 +152,7 @@ function Dashboard() {
   async function handleLogout() {
     try {
       const response = await fetch(
-        'http://localhost:5000/api/auth/logout',
+        '/api/auth/logout',
         {
           method: 'POST',
           credentials: 'include',
